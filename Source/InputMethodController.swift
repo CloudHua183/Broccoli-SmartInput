@@ -52,6 +52,13 @@ private let kSmartUserPhraseNumberKeyLengths: [UInt16: Int] = [
     29: 10,
 ]
 
+private struct SmartUserPhraseShortcutTarget: Equatable {
+    let phrase: String
+    let reading: String
+    let length: Int
+    let cursorLocation: Int
+}
+
 extension CandidateController {
     static let horizontal = HorizontalCandidateController()
     static let vertical = VerticalCandidateController()
@@ -68,6 +75,7 @@ class McBopomofoInputMethodController: IMKInputController {
     var keyHandler: KeyHandler = KeyHandler()
     var state: InputState = InputState.Empty()
     lazy var charInfo: SystemCharacterInfo? = try? SystemCharacterInfo()
+    private var lastSmartUserPhraseShortcutTarget: SmartUserPhraseShortcutTarget?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -414,29 +422,59 @@ extension McBopomofoInputMethodController {
               !event.modifierFlags.contains(.command),
               !event.modifierFlags.contains(.option),
               let length = kSmartUserPhraseNumberKeyLengths[event.keyCode],
-              let phrase = textBeforeCursor(length: length, client: client),
-              phrase.isEmpty == false,
-              let reading = smartUserPhraseReading(for: phrase),
-              reading.isEmpty == false
+              let target = smartUserPhraseTarget(length: length, client: client)
         else {
             return false
         }
 
-        let phraseToWrite = "\(phrase) \(reading)"
+        let phraseToWrite = "\(target.phrase) \(target.reading)"
+        if lastSmartUserPhraseShortcutTarget == target {
+            let result = LanguageModelManager.deleteUserPhrase(phraseToWrite)
+            LanguageModelManager.loadUserPhrases(
+                enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+            lastSmartUserPhraseShortcutTarget = nil
+            NotifierController.notify(
+                message: result
+                    ? "\(target.phrase)字詞已從使用者詞庫中刪除"
+                    : "\(target.phrase)字詞不在使用者詞庫中")
+            return true
+        }
+
         let result = LanguageModelManager.writeUserPhrase(phraseToWrite)
         if result {
             LanguageModelManager.loadUserPhrases(
                 enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
-            NotifierController.notify(message: "已加入使用者詞庫：\(phrase)")
+            lastSmartUserPhraseShortcutTarget = target
+            NotifierController.notify(message: "已將\(target.phrase)字詞加入使用者詞庫中")
         } else {
-            NotifierController.notify(message: "使用者詞庫已存在或無法加入：\(phrase)")
+            lastSmartUserPhraseShortcutTarget = nil
+            NotifierController.notify(message: "\(target.phrase)字詞已存在或無法加入使用者詞庫")
         }
         return true
     }
 
-    private func textBeforeCursor(length: Int, client: Any!) -> String? {
+    private func smartUserPhraseTarget(length: Int, client: Any!) -> SmartUserPhraseShortcutTarget? {
+        guard let cursorText = textBeforeCursor(length: length, client: client),
+              cursorText.text.isEmpty == false,
+              let reading = smartUserPhraseReading(for: cursorText.text),
+              reading.isEmpty == false
+        else {
+            return nil
+        }
+
+        return SmartUserPhraseShortcutTarget(
+            phrase: cursorText.text,
+            reading: reading,
+            length: length,
+            cursorLocation: cursorText.cursorLocation)
+    }
+
+    private func textBeforeCursor(length: Int, client: Any!) -> (text: String, cursorLocation: Int)? {
         if let state = state as? InputState.Inputting {
-            return suffixBeforeCursor(in: state.composingBuffer, cursorIndex: Int(state.cursorIndex), length: length)
+            guard let text = suffixBeforeCursor(in: state.composingBuffer, cursorIndex: Int(state.cursorIndex), length: length) else {
+                return nil
+            }
+            return (text, Int(state.cursorIndex))
         }
 
         guard let textInput = client as? IMKTextInput else {
@@ -450,7 +488,10 @@ extension McBopomofoInputMethodController {
 
         let queryLength = min(length, selectedRange.location)
         let queryRange = NSRange(location: selectedRange.location - queryLength, length: queryLength)
-        return textInput.attributedSubstring(from: queryRange)?.string
+        guard let text = textInput.attributedSubstring(from: queryRange)?.string else {
+            return nil
+        }
+        return (text, selectedRange.location)
     }
 
     private func suffixBeforeCursor(in text: String, cursorIndex: Int, length: Int) -> String? {

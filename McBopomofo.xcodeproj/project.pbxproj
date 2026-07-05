@@ -16,6 +16,7 @@
 		6A2E40F6253A69DA00D1AE1D /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6A2E40F5253A69DA00D1AE1D /* Images.xcassets */; };
 		6A2E40F9253A6AA000D1AE1D /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6A2E40F5253A69DA00D1AE1D /* Images.xcassets */; };
 		6A38BC1515FC117A00A8A51F /* data.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6A38BBF615FC117A00A8A51F /* data.txt */; };
+		AA0000020000000000000001 /* smart-mixed-ascii-words.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000002 /* smart-mixed-ascii-words.txt */; };
 		6A4F5F982879E838008C4307 /* reading_grid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A4F5F932879E838008C4307 /* reading_grid.cpp */; };
 		6A660A702EAF371000D53D7B /* ByteBlockBackedDictionary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6A660A6F2EAF371000D53D7B /* ByteBlockBackedDictionary.cpp */; };
 		6A68C1C32EC7F2C0005284A0 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 6A68C1C12EC7F2C0005284A0 /* Localizable.stringsdict */; };
@@ -142,6 +143,7 @@
 		6A225A1E23679F2600F685C6 /* NotarizedArchives */ = {isa = PBXFileReference; lastKnownFileType = folder; path = NotarizedArchives; sourceTree = "<group>"; };
 		6A2E40F5253A69DA00D1AE1D /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
 		6A38BBF615FC117A00A8A51F /* data.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = data.txt; sourceTree = "<group>"; };
+		AA0000020000000000000002 /* smart-mixed-ascii-words.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "smart-mixed-ascii-words.txt"; sourceTree = "<group>"; };
 		6A4F5F912879E838008C4307 /* reading_grid.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = reading_grid.h; sourceTree = "<group>"; };
 		6A4F5F922879E838008C4307 /* language_model.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = language_model.h; sourceTree = "<group>"; };
 		6A4F5F932879E838008C4307 /* reading_grid.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = reading_grid.cpp; sourceTree = "<group>"; };
@@ -431,9 +433,10 @@
 				D47D73A727A6C84F00255A50 /* associated-phrases-v2.txt */,
 				6A833E4A2F0A0F7F0086AD0C /* bpmfvs-pua.txt */,
 				6A833E4B2F0A0F7F0086AD0C /* bpmfvs-variants.txt */,
-				6A38BBF615FC117A00A8A51F /* data.txt */,
-				6AD7CBC715FE555000691B5B /* data-plain-bpmf.txt */,
-			);
+					6A38BBF615FC117A00A8A51F /* data.txt */,
+					6AD7CBC715FE555000691B5B /* data-plain-bpmf.txt */,
+					AA0000020000000000000002 /* smart-mixed-ascii-words.txt */,
+				);
 			path = Data;
 			sourceTree = "<group>";
 		};
@@ -690,6 +693,7 @@
 				6A2E40F6253A69DA00D1AE1D /* Images.xcassets in Resources */,
 				D4E33D8F27A838F0006DB1CF /* InfoPlist.strings in Resources */,
 				6A38BC1515FC117A00A8A51F /* data.txt in Resources */,
+				AA0000020000000000000001 /* smart-mixed-ascii-words.txt in Resources */,
 				6A6ED16B2797650A0012872E /* template-phrases-replacement.txt in Resources */,
 				6AFF97F2253B299E007F1C49 /* NonModalAlertWindowController.xib in Resources */,
 				D4EE675A2B39968900F062DE /* dictionary_service.json in Resources */,

@@ -417,6 +417,47 @@ static void LTLoadVariantAnnotatorData()
     return NO;
 }
 
++ (BOOL)bundledSmartMixedASCIIWordHasPrefix:(NSString *)prefix
+{
+    if (prefix.length == 0) {
+        return NO;
+    }
+
+    Class cls = NSClassFromString(@"McBopomofoInputMethodController");
+    NSString *path = [[NSBundle bundleForClass:cls] pathForResource:@"smart-mixed-ascii-words" ofType:@"txt"];
+    if (path == nil || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSString *lowercasePrefix = prefix.lowercaseString;
+    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (word.length == 0 || [word hasPrefix:@"#"]) {
+            continue;
+        }
+        if ([word rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+        if ([word.lowercaseString hasPrefix:lowercasePrefix]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
++ (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix
+{
+    return [self bundledSmartMixedASCIIWordHasPrefix:prefix] || [self userASCIIPhraseHasPrefix:prefix];
+}
+
 + (BOOL)writeUserPhrase:(NSString *)userPhrase
 {
     if (![self checkIfUserLanguageModelFilesExist]) {
@@ -436,6 +477,16 @@ static void LTLoadVariantAnnotatorData()
     //  so we don't have to load data here.
     //  [self loadUserPhrases];
     return result;
+}
+
++ (BOOL)deleteUserPhrase:(NSString *)userPhrase
+{
+    if (![self checkIfUserLanguageModelFilesExist]) {
+        return NO;
+    }
+
+    NSString *includePath = [self userPhrasesDataPathMcBopomofo];
+    return [self _removePhrase:userPhrase atPath:includePath];
 }
 
 + (BOOL)removeUserPhrase:(NSString *)userPhrase

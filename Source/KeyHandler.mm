@@ -324,27 +324,8 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 - (BOOL)_smartMixedASCIIKnownWordHasPrefix:(const std::string&)prefix
 {
-    static const std::vector<std::string> words = {
-        "meeting",
-        "call",
-        "email",
-        "api",
-        "sdk",
-        "ai",
-        "openai",
-        "chatgpt",
-        "github",
-        "google",
-    };
-
-    std::string lower = [self _lowercaseASCIIString:prefix];
-    for (const std::string& word : words) {
-        if (word.rfind(lower, 0) == 0) {
-            return YES;
-        }
-    }
     NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
-    return [LanguageModelManager userASCIIPhraseHasPrefix:prefixString];
+    return [LanguageModelManager smartMixedASCIIPhraseHasPrefix:prefixString];
 }
 
 - (BOOL)_smartMixedASCIISequenceCanContinueWithChar:(char)ch
