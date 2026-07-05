@@ -37,6 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)checkIfUserPhraseExist:(NSString *)userPhrase key:(NSString *)key NS_SWIFT_NAME(checkIfExist(userPhrase:key:));
 + (BOOL)writeUserPhrase:(NSString *)userPhrase;
 + (BOOL)removeUserPhrase:(NSString *)userPhrase;
++ (BOOL)userASCIIPhraseHasPrefix:(NSString *)prefix;
 
 + (nullable NSString *)readingFor:(NSString *)phrase;
 

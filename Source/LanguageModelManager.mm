@@ -374,6 +374,49 @@ static void LTLoadVariantAnnotatorData()
     return NO;
 }
 
++ (BOOL)userASCIIPhraseHasPrefix:(NSString *)prefix
+{
+    if (prefix.length == 0) {
+        return NO;
+    }
+
+    NSString *lowercasePrefix = prefix.lowercaseString;
+    NSString *includePath = [self userPhrasesDataPathMcBopomofo];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:includePath]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:includePath] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (trimmed.length == 0 || [trimmed hasPrefix:@"#"]) {
+            continue;
+        }
+
+        NSArray *lineComponents = [trimmed componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (lineComponents.count < 2) {
+            continue;
+        }
+
+        NSString *phrase = lineComponents[0];
+        if (phrase.length == 0 || [phrase rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+
+        if ([phrase.lowercaseString hasPrefix:lowercasePrefix]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 + (BOOL)writeUserPhrase:(NSString *)userPhrase
 {
     if (![self checkIfUserLanguageModelFilesExist]) {

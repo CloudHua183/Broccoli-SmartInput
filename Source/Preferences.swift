@@ -49,6 +49,7 @@ private let kAllowMovingCursorWhenChoosingCandidates = "AllowMovingCursorWhenCho
 private let kPhraseReplacementEnabledKey = "PhraseReplacementEnabled"
 private let kChineseConversionStyleKey = "ChineseConversionStyle"
 private let kAssociatedPhrasesEnabledKey = "AssociatedPhrasesEnabled"
+private let kSmartMixedInputEnabledKey = "SmartMixedInputEnabled"
 private let kLetterBehaviorKey = "LetterBehavior"
 private let kControlEnterOutputKey = "ControlEnterOutput"
 private let kShiftEnterEnabledKey = "ShiftEnterEnabled"
@@ -230,6 +231,7 @@ class Preferences: NSObject {
             kPhraseReplacementEnabledKey,
             kChineseConversionStyleKey,
             kAssociatedPhrasesEnabledKey,
+            kSmartMixedInputEnabledKey,
             kControlEnterOutputKey,
             kShiftEnterEnabledKey,
             kRepeatedPunctuationToSelectCandidateEnabledKey,
@@ -255,6 +257,7 @@ class Preferences: NSObject {
         Preferences.chineseConversionStyle = Preferences.chineseConversionStyle
         Preferences.phraseReplacementEnabled = Preferences.phraseReplacementEnabled
         Preferences.associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.smartMixedInputEnabled = Preferences.smartMixedInputEnabled
         Preferences.letterBehavior = Preferences.letterBehavior
         Preferences.controlEnterOutput = Preferences.controlEnterOutput
         Preferences.shiftEnterEnabled = Preferences.shiftEnterEnabled
@@ -447,6 +450,14 @@ extension Preferences {
     @objc static func toggleAssociatedPhrasesEnabled() -> Bool {
         associatedPhrasesEnabled = !associatedPhrasesEnabled
         return associatedPhrasesEnabled
+    }
+
+    @UserDefault(key: kSmartMixedInputEnabledKey, defaultValue: true)
+    @objc static var smartMixedInputEnabled: Bool
+
+    @objc static func toggleSmartMixedInputEnabled() -> Bool {
+        smartMixedInputEnabled = !smartMixedInputEnabled
+        return smartMixedInputEnabled
     }
 
     @UserDefault(key: kShiftEnterEnabledKey, defaultValue: true)
@@ -645,6 +656,9 @@ extension Preferences {
         )
         lines.append(
             "  - Associated Phrases (McBopomofo): \(Preferences.associatedPhrasesEnabled ? "Enabled" : "Disabled")"
+        )
+        lines.append(
+            "  - Smart Mixed Input: \(Preferences.smartMixedInputEnabled ? "Enabled" : "Disabled")"
         )
         lines.append(
             "  - Associated Phrases (Plain Bopomofo): \(Preferences.enableUserPhrasesInPlainBopomofo ? "Enabled" : "Disabled")"

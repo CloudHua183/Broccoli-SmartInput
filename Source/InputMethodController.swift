@@ -39,6 +39,19 @@ private let kMinKeyLabelSize: CGFloat = 10
 
 internal var gCurrentCandidateController: CandidateController?
 
+private let kSmartUserPhraseNumberKeyLengths: [UInt16: Int] = [
+    18: 1,
+    19: 2,
+    20: 3,
+    21: 4,
+    23: 5,
+    22: 6,
+    26: 7,
+    28: 8,
+    25: 9,
+    29: 10,
+]
+
 extension CandidateController {
     static let horizontal = HorizontalCandidateController()
     static let vertical = VerticalCandidateController()
@@ -258,6 +271,10 @@ class McBopomofoInputMethodController: IMKInputController {
             return false
         }
 
+        if handleSmartUserPhraseShortcut(event, client: client) {
+            return true
+        }
+
         var textFrame = NSRect.zero
         let attributes: [AnyHashable: Any]? = (client as? IMKTextInput)?.attributes(
             forCharacterIndex: 0, lineHeightRectangle: &textFrame)
@@ -385,6 +402,94 @@ class McBopomofoInputMethodController: IMKInputController {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+}
+
+// MARK: - Smart User Phrase Shortcut
+
+extension McBopomofoInputMethodController {
+    private func handleSmartUserPhraseShortcut(_ event: NSEvent, client: Any!) -> Bool {
+        guard event.type == .keyDown,
+              event.modifierFlags.contains(.control),
+              event.modifierFlags.contains(.shift),
+              !event.modifierFlags.contains(.command),
+              !event.modifierFlags.contains(.option),
+              let length = kSmartUserPhraseNumberKeyLengths[event.keyCode],
+              let phrase = textBeforeCursor(length: length, client: client),
+              phrase.isEmpty == false,
+              let reading = smartUserPhraseReading(for: phrase),
+              reading.isEmpty == false
+        else {
+            return false
+        }
+
+        let phraseToWrite = "\(phrase) \(reading)"
+        let result = LanguageModelManager.writeUserPhrase(phraseToWrite)
+        if result {
+            LanguageModelManager.loadUserPhrases(
+                enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+            NotifierController.notify(message: "已加入使用者詞庫：\(phrase)")
+        } else {
+            NotifierController.notify(message: "使用者詞庫已存在或無法加入：\(phrase)")
+        }
+        return true
+    }
+
+    private func textBeforeCursor(length: Int, client: Any!) -> String? {
+        if let state = state as? InputState.Inputting {
+            return suffixBeforeCursor(in: state.composingBuffer, cursorIndex: Int(state.cursorIndex), length: length)
+        }
+
+        guard let textInput = client as? IMKTextInput else {
+            return nil
+        }
+
+        let selectedRange = textInput.selectedRange()
+        guard selectedRange.location != NSNotFound, selectedRange.location > 0 else {
+            return nil
+        }
+
+        let queryLength = min(length, selectedRange.location)
+        let queryRange = NSRange(location: selectedRange.location - queryLength, length: queryLength)
+        return textInput.attributedSubstring(from: queryRange)?.string
+    }
+
+    private func suffixBeforeCursor(in text: String, cursorIndex: Int, length: Int) -> String? {
+        guard cursorIndex > 0, length > 0 else {
+            return nil
+        }
+
+        let nsText = text as NSString
+        let clampedCursorIndex = min(cursorIndex, nsText.length)
+        let queryLength = min(length, clampedCursorIndex)
+        return nsText.substring(with: NSRange(location: clampedCursorIndex - queryLength, length: queryLength))
+    }
+
+    private func smartUserPhraseReading(for phrase: String) -> String? {
+        if let asciiReading = asciiReading(for: phrase) {
+            return asciiReading
+        }
+
+        let reading = ServiceProvider().extractReading(from: phrase)
+        return reading.contains("？") ? nil : reading
+    }
+
+    private func asciiReading(for phrase: String) -> String? {
+        var readings: [String] = []
+        for scalar in phrase.unicodeScalars {
+            guard scalar.isASCII else {
+                return nil
+            }
+
+            if CharacterSet.uppercaseLetters.contains(scalar) || CharacterSet.lowercaseLetters.contains(scalar) {
+                readings.append("_letter_\(String(scalar).uppercased())")
+            } else if CharacterSet.decimalDigits.contains(scalar) {
+                readings.append("_number_\(scalar)")
+            } else {
+                return nil
+            }
+        }
+        return readings.isEmpty ? nil : readings.joined(separator: "-")
+    }
 }
 
 // MARK: - State Handling

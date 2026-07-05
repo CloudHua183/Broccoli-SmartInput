@@ -648,6 +648,18 @@
 			);
 			mainGroup = 6A0D4E9215FC0CFA00ABF4B3;
 			packageReferences = (
+				AA0000010000000000000001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */,
+				AA0000010000000000000002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */,
+				AA0000010000000000000003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */,
+				AA0000010000000000000004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */,
+				AA0000010000000000000005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */,
+				AA0000010000000000000006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */,
+				AA0000010000000000000007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */,
+				AA0000010000000000000008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */,
+				AA0000010000000000000009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */,
+				AA000001000000000000000A /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */,
+				AA000001000000000000000B /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */,
+				AA000001000000000000000C /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */,
 			);
 			productRefGroup = 6A0D4EA315FC0D2D00ABF4B3 /* Products */;
 			projectDirPath = "";
@@ -1476,57 +1488,121 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		AA0000010000000000000001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/InfoCollector;
+		};
+		AA0000010000000000000002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/BopomofoBraille;
+		};
+		AA0000010000000000000003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/CandidateUI;
+		};
+		AA0000010000000000000004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TooltipUI;
+		};
+		AA0000010000000000000005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NotifierUI;
+		};
+		AA0000010000000000000006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/InputSourceHelper;
+		};
+		AA0000010000000000000007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/OpenCCBridge;
+		};
+		AA0000010000000000000008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SystemCharacterInfo;
+		};
+		AA0000010000000000000009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FSEventStreamHelper;
+		};
+		AA000001000000000000000A /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/RomanNumbers;
+		};
+		AA000001000000000000000B /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NSStringUtils;
+		};
+		AA000001000000000000000C /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ChineseNumbers;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		D40EFFA12EB669F900C1728A /* InfoCollector */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000001 /* XCLocalSwiftPackageReference "Packages/InfoCollector" */;
 			productName = InfoCollector;
 		};
 		D41B626B2B86EAE900583148 /* BopomofoBraille */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000002 /* XCLocalSwiftPackageReference "Packages/BopomofoBraille" */;
 			productName = BopomofoBraille;
 		};
 		D427F769278C9E29004A2160 /* CandidateUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000003 /* XCLocalSwiftPackageReference "Packages/CandidateUI" */;
 			productName = CandidateUI;
 		};
 		D427F7A827905E90004A2160 /* TooltipUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000004 /* XCLocalSwiftPackageReference "Packages/TooltipUI" */;
 			productName = TooltipUI;
 		};
 		D427F7AD27907B8A004A2160 /* NotifierUI */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000005 /* XCLocalSwiftPackageReference "Packages/NotifierUI" */;
 			productName = NotifierUI;
 		};
 		D427F7B3279086DC004A2160 /* InputSourceHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */;
 			productName = InputSourceHelper;
 		};
 		D427F7B5279086F6004A2160 /* InputSourceHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000006 /* XCLocalSwiftPackageReference "Packages/InputSourceHelper" */;
 			productName = InputSourceHelper;
 		};
 		D427F7C027908EFC004A2160 /* OpenCCBridge */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000007 /* XCLocalSwiftPackageReference "Packages/OpenCCBridge" */;
 			productName = OpenCCBridge;
 		};
 		D4451AC82E688C6B00E8F5AB /* SystemCharacterInfo */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000008 /* XCLocalSwiftPackageReference "Packages/SystemCharacterInfo" */;
 			productName = SystemCharacterInfo;
 		};
 		D47D73C227A7200500255A50 /* FSEventStreamHelper */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA0000010000000000000009 /* XCLocalSwiftPackageReference "Packages/FSEventStreamHelper" */;
 			productName = FSEventStreamHelper;
 		};
 		D48F853D2EACDB6C00C2FDAB /* RomanNumbers */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA000001000000000000000A /* XCLocalSwiftPackageReference "Packages/RomanNumbers" */;
 			productName = RomanNumbers;
 		};
 		D4C9CAB027AAC9690058DFEA /* NSStringUtils */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA000001000000000000000B /* XCLocalSwiftPackageReference "Packages/NSStringUtils" */;
 			productName = NSStringUtils;
 		};
 		D4E791792B52CDE500676A68 /* ChineseNumbers */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AA000001000000000000000C /* XCLocalSwiftPackageReference "Packages/ChineseNumbers" */;
 			productName = ChineseNumbers;
 		};
 /* End XCSwiftPackageProductDependency section */

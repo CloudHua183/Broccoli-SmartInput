@@ -30,6 +30,7 @@
 #import "UserOverrideModel.h"
 #import "reading_grid.h"
 
+#include <cctype>
 #import <algorithm>
 #import <optional>
 #import <sstream>
@@ -64,6 +65,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
 
     NSString *_inputMode;
+    BOOL _smartMixedASCIISequenceActive;
+    std::string _smartMixedASCIISequence;
+    std::optional<char> _smartMixedASCIIPendingStartChar;
 }
 
 @synthesize delegate = _delegate;
@@ -135,6 +139,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid->setReadingSeparator("-");
 
         _inputMode = InputModeBopomofo;
+        _smartMixedASCIISequenceActive = NO;
+        _smartMixedASCIISequence.clear();
+        _smartMixedASCIIPendingStartChar = std::nullopt;
     }
     return self;
 }
@@ -294,6 +301,75 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _bpmfReadingBuffer->clear();
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+}
+
+- (void)_resetSmartMixedASCIIState
+{
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+}
+
+- (std::string)_lowercaseASCIIString:(const std::string&)value
+{
+    std::string lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return lower;
+}
+
+- (BOOL)_smartMixedASCIIKnownWordHasPrefix:(const std::string&)prefix
+{
+    static const std::vector<std::string> words = {
+        "meeting",
+        "call",
+        "email",
+        "api",
+        "sdk",
+        "ai",
+        "openai",
+        "chatgpt",
+        "github",
+        "google",
+    };
+
+    std::string lower = [self _lowercaseASCIIString:prefix];
+    for (const std::string& word : words) {
+        if (word.rfind(lower, 0) == 0) {
+            return YES;
+        }
+    }
+    NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
+    return [LanguageModelManager userASCIIPhraseHasPrefix:prefixString];
+}
+
+- (BOOL)_smartMixedASCIISequenceCanContinueWithChar:(char)ch
+{
+    if (_smartMixedASCIISequence.empty()) {
+        return NO;
+    }
+
+    std::string next = _smartMixedASCIISequence + std::string(1, ch);
+    if ([self _smartMixedASCIIKnownWordHasPrefix:next]) {
+        return YES;
+    }
+
+    if (isdigit(ch)) {
+        return YES;
+    }
+
+    BOOL currentIsUppercaseAcronym = YES;
+    for (char tokenChar : _smartMixedASCIISequence) {
+        if (isalpha(tokenChar) && !isupper(tokenChar)) {
+            currentIsUppercaseAcronym = NO;
+            break;
+        }
+    }
+    return currentIsUppercaseAcronym && isupper(ch);
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -317,6 +393,62 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     NSString *keyboardLayoutName = Preferences.keyboardLayoutName;
     std::string layout = std::string(keyboardLayoutName.UTF8String) + "_";
     return layout;
+}
+
+- (std::optional<std::string>)_literalASCIIReadingForChar:(char)ch
+{
+    if (isalpha(ch)) {
+        char upper = static_cast<char>(toupper(ch));
+        return std::string("_letter_") + std::string(1, upper);
+    }
+    if (isdigit(ch)) {
+        return std::string("_numpad_") + std::string(1, ch);
+    }
+    return std::nullopt;
+}
+
+- (BOOL)_insertLiteralASCIIChar:(char)ch
+                  stateCallback:(void (^)(InputState *))stateCallback
+{
+    std::optional<std::string> reading = [self _literalASCIIReadingForChar:ch];
+    if (!reading.has_value()) {
+        return NO;
+    }
+
+    if (!_grid->insertReading(reading.value())) {
+        return NO;
+    }
+
+    Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading.value(), std::string(1, ch));
+    _grid->overrideCandidate(_grid->cursor() - 1, candidate);
+    [self _walk];
+
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    stateCallback(inputting);
+    return YES;
+}
+
+- (BOOL)_startSmartMixedASCIISequenceWithChar:(char)ch
+                                stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (![self _insertLiteralASCIIChar:ch stateCallback:stateCallback]) {
+        return NO;
+    }
+    _smartMixedASCIISequenceActive = YES;
+    _smartMixedASCIISequence = std::string(1, ch);
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    return YES;
+}
+
+- (BOOL)_continueSmartMixedASCIISequenceWithChar:(char)ch
+                                   stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (![self _insertLiteralASCIIChar:ch stateCallback:stateCallback]) {
+        return NO;
+    }
+    _smartMixedASCIISequence += std::string(1, ch);
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    return YES;
 }
 
 - (BOOL)handleInput:(KeyHandlerInput *)input state:(InputState *)inState stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback
@@ -452,13 +584,59 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     BOOL keyConsumedByReading = NO;
     BOOL skipBpmfHandling = input.isReservedKey || input.isControlHold;
 
+    if (Preferences.smartMixedInputEnabled && !skipBpmfHandling && !input.isCommandHold && !input.isOptionHold && !input.isNumericPad && charCode < 0x80) {
+        char ch = static_cast<char>(charCode);
+        BOOL isLiteralASCII = isalpha(ch) || isdigit(ch);
+        BOOL canContinueSmartASCII = _smartMixedASCIISequenceActive && isLiteralASCII && [self _smartMixedASCIISequenceCanContinueWithChar:ch];
+        BOOL canStartSmartASCII = !_smartMixedASCIISequenceActive && isupper(ch) && _bpmfReadingBuffer->isEmpty() && [state isKindOfClass:[InputStateNotEmpty class]];
+        BOOL canConfirmPendingSmartASCII = !_smartMixedASCIISequenceActive && _smartMixedASCIIPendingStartChar.has_value() && isalpha(ch) && [self _smartMixedASCIIKnownWordHasPrefix:std::string(1, _smartMixedASCIIPendingStartChar.value()) + std::string(1, ch)];
+
+        if (canContinueSmartASCII) {
+            if ([self _continueSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
+                return YES;
+            }
+        } else if (_smartMixedASCIISequenceActive) {
+            [self _resetSmartMixedASCIIState];
+        }
+
+        if (canStartSmartASCII) {
+            if ([self _startSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
+                return YES;
+            }
+        } else if (canConfirmPendingSmartASCII) {
+            char pending = _smartMixedASCIIPendingStartChar.value();
+            _bpmfReadingBuffer->clear();
+            [self _resetSmartMixedASCIIState];
+            if ([self _startSmartMixedASCIISequenceWithChar:pending stateCallback:stateCallback] &&
+                [self _continueSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
+                return YES;
+            }
+        } else if (!isLiteralASCII) {
+            [self _resetSmartMixedASCIIState];
+        }
+    }
+
     // MARK: Handle BPMF Keys
 
     // see if it's valid BPMF reading
     bool isValidKey = _bpmfReadingBuffer->isValidKey((char)charCode);
     if (!skipBpmfHandling && isValidKey) {
+        BOOL canMarkPendingSmartASCIIStart = Preferences.smartMixedInputEnabled &&
+            !_smartMixedASCIISequenceActive &&
+            !_smartMixedASCIIPendingStartChar.has_value() &&
+            _bpmfReadingBuffer->isEmpty() &&
+            charCode < 0x80 &&
+            islower(static_cast<char>(charCode)) &&
+            [state isKindOfClass:[InputStateNotEmpty class]] &&
+            [self _smartMixedASCIIKnownWordHasPrefix:std::string(1, static_cast<char>(charCode))];
+
         _bpmfReadingBuffer->combineKey((char)charCode);
         keyConsumedByReading = YES;
+        if (canMarkPendingSmartASCIIStart) {
+            _smartMixedASCIIPendingStartChar = static_cast<char>(charCode);
+        } else {
+            _smartMixedASCIIPendingStartChar = std::nullopt;
+        }
 
         // if we have a tone marker, we have to insert the reading to the
         // builder in other words, if we don't have a tone marker, we just
