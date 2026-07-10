@@ -570,7 +570,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         BOOL isLiteralASCII = isalpha(ch) || isdigit(ch);
         BOOL canContinueSmartASCII = _smartMixedASCIISequenceActive && isLiteralASCII && [self _smartMixedASCIISequenceCanContinueWithChar:ch];
         BOOL canStartSmartASCII = !_smartMixedASCIISequenceActive && isupper(ch) && _bpmfReadingBuffer->isEmpty() && [state isKindOfClass:[InputStateNotEmpty class]];
-        BOOL canConfirmPendingSmartASCII = !_smartMixedASCIISequenceActive && _smartMixedASCIIPendingStartChar.has_value() && isalpha(ch) && [self _smartMixedASCIIKnownWordHasPrefix:std::string(1, _smartMixedASCIIPendingStartChar.value()) + std::string(1, ch)];
 
         if (canContinueSmartASCII) {
             if ([self _continueSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
@@ -584,14 +583,6 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
             if ([self _startSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
                 return YES;
             }
-        } else if (canConfirmPendingSmartASCII) {
-            char pending = _smartMixedASCIIPendingStartChar.value();
-            _bpmfReadingBuffer->clear();
-            [self _resetSmartMixedASCIIState];
-            if ([self _startSmartMixedASCIISequenceWithChar:pending stateCallback:stateCallback] &&
-                [self _continueSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
-                return YES;
-            }
         } else if (!isLiteralASCII) {
             [self _resetSmartMixedASCIIState];
         }
@@ -602,22 +593,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     // see if it's valid BPMF reading
     bool isValidKey = _bpmfReadingBuffer->isValidKey((char)charCode);
     if (!skipBpmfHandling && isValidKey) {
-        BOOL canMarkPendingSmartASCIIStart = Preferences.smartMixedInputEnabled &&
-            !_smartMixedASCIISequenceActive &&
-            !_smartMixedASCIIPendingStartChar.has_value() &&
-            _bpmfReadingBuffer->isEmpty() &&
-            charCode < 0x80 &&
-            islower(static_cast<char>(charCode)) &&
-            [state isKindOfClass:[InputStateNotEmpty class]] &&
-            [self _smartMixedASCIIKnownWordHasPrefix:std::string(1, static_cast<char>(charCode))];
-
         _bpmfReadingBuffer->combineKey((char)charCode);
         keyConsumedByReading = YES;
-        if (canMarkPendingSmartASCIIStart) {
-            _smartMixedASCIIPendingStartChar = static_cast<char>(charCode);
-        } else {
-            _smartMixedASCIIPendingStartChar = std::nullopt;
-        }
+        _smartMixedASCIIPendingStartChar = std::nullopt;
 
         // if we have a tone marker, we have to insert the reading to the
         // builder in other words, if we don't have a tone marker, we just

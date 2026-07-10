@@ -516,7 +516,7 @@ class KeyHandlerBopomofoTests: XCTestCase {
         }
     }
 
-    func testSmartMixedASCIISequenceKeepsTrailingDigitsInChineseContext() {
+    func testSmartMixedASCIISequenceKeepsContinuousTrailingDigitsInChineseContext() {
         let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.associatedPhrasesEnabled = false
         defer {
@@ -527,11 +527,11 @@ class KeyHandlerBopomofoTests: XCTestCase {
         handle("su3cl3", state: &state)
         handle("A", state: &state, flags: .shift)
         handle("I", state: &state, flags: .shift)
-        handle("2", state: &state)
+        handle("2026", state: &state)
 
         XCTAssertTrue(state is InputState.Inputting, "\(state)")
         if let state = state as? InputState.Inputting {
-            XCTAssertEqual(state.composingBuffer, "你好AI2")
+            XCTAssertEqual(state.composingBuffer, "你好AI2026")
         }
     }
 
@@ -554,7 +554,7 @@ class KeyHandlerBopomofoTests: XCTestCase {
         }
     }
 
-    func testSmartMixedASCIISequenceSupportsLowercaseKnownEnglishWord() {
+    func testSmartMixedASCIISequenceDoesNotHijackBopomofoPrefix() {
         let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.associatedPhrasesEnabled = false
         defer {
@@ -563,12 +563,12 @@ class KeyHandlerBopomofoTests: XCTestCase {
 
         var state: InputState = InputState.Empty()
         handle("su3cl3", state: &state)
-        handle("call", state: &state)
-        handle("e93", state: &state)
+        handle("ap", state: &state)
 
         XCTAssertTrue(state is InputState.Inputting, "\(state)")
         if let state = state as? InputState.Inputting {
-            XCTAssertEqual(state.composingBuffer, "你好call改")
+            XCTAssertEqual(state.composingBuffer, "你好ㄇㄣ")
+            XCTAssertNotEqual(state.composingBuffer, "你好ap")
         }
     }
 
