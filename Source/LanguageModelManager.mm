@@ -417,6 +417,49 @@ static void LTLoadVariantAnnotatorData()
     return NO;
 }
 
++ (BOOL)userASCIIPhraseMatches:(NSString *)phrase
+{
+    if (phrase.length == 0) {
+        return NO;
+    }
+
+    NSString *lowercasePhrase = phrase.lowercaseString;
+    NSString *includePath = [self userPhrasesDataPathMcBopomofo];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:includePath]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:includePath] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (trimmed.length == 0 || [trimmed hasPrefix:@"#"]) {
+            continue;
+        }
+
+        NSArray *lineComponents = [trimmed componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (lineComponents.count < 2) {
+            continue;
+        }
+
+        NSString *userPhrase = lineComponents[0];
+        if (userPhrase.length == 0 || [userPhrase rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+
+        if ([userPhrase.lowercaseString isEqualToString:lowercasePhrase]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 + (BOOL)bundledSmartMixedASCIIWordHasPrefix:(NSString *)prefix
 {
     if (prefix.length == 0) {
@@ -453,9 +496,50 @@ static void LTLoadVariantAnnotatorData()
     return NO;
 }
 
++ (BOOL)bundledSmartMixedASCIIWordMatches:(NSString *)phrase
+{
+    if (phrase.length == 0) {
+        return NO;
+    }
+
+    Class cls = NSClassFromString(@"McBopomofoInputMethodController");
+    NSString *path = [[NSBundle bundleForClass:cls] pathForResource:@"smart-mixed-ascii-words" ofType:@"txt"];
+    if (path == nil || ![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSString *lowercasePhrase = phrase.lowercaseString;
+    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (word.length == 0 || [word hasPrefix:@"#"]) {
+            continue;
+        }
+        if ([word rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+        if ([word.lowercaseString isEqualToString:lowercasePhrase]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 + (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix
 {
     return [self bundledSmartMixedASCIIWordHasPrefix:prefix] || [self userASCIIPhraseHasPrefix:prefix];
+}
+
++ (BOOL)smartMixedASCIIPhraseMatches:(NSString *)phrase
+{
+    return [self bundledSmartMixedASCIIWordMatches:phrase] || [self userASCIIPhraseMatches:phrase];
 }
 
 + (BOOL)writeUserPhrase:(NSString *)userPhrase

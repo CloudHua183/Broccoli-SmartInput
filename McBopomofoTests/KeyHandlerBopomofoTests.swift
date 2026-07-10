@@ -554,6 +554,56 @@ class KeyHandlerBopomofoTests: XCTestCase {
         }
     }
 
+    func testSmartMixedLowercaseASCIISequenceKeepsCallInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("call", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好call")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsMeetingAtSentenceStart() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("meeting", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "meeting")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsAPIInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("api", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好api")
+        }
+    }
+
     func testSmartMixedASCIISequenceDoesNotHijackBopomofoPrefix() {
         let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.associatedPhrasesEnabled = false

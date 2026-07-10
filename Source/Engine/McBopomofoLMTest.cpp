@@ -64,6 +64,11 @@ constexpr char kUserPhrasesData[] = R"(
 程式 ㄔㄥˊ-ㄕˋ
 )";
 
+constexpr char kRankedUserPhrasesData[] = R"(
+首選 ㄉㄨㄥˋ
+次選 ㄉㄨㄥˋ
+)";
+
 constexpr char kExcludedPhrasesData[] = R"(
 動作 ㄉㄨㄥˋ-ㄗㄨㄛˋ
 )";
@@ -191,6 +196,20 @@ TEST(McBopomofoLMTest, MonoSyllableUserPhrasesNeedRewrite) {
   EXPECT_GT(unigrams[0].score(), unigrams[1].score());
   // The delta between the two should be minuscule.
   EXPECT_LT(std::abs(unigrams[0].score() - unigrams[1].score()), 0.000001);
+}
+
+TEST(McBopomofoLMTest, MonoSyllableUserPhraseRewritePreservesUserOrder) {
+  McBopomofoLM lm;
+  auto db = std::make_unique<ParselessPhraseDB>(kPrimaryLMData,
+                                                sizeof(kPrimaryLMData));
+  lm.loadLanguageModel(std::move(db));
+  lm.loadUserPhrases(kRankedUserPhrasesData, sizeof(kRankedUserPhrasesData));
+
+  auto unigrams = lm.getUnigrams("ㄉㄨㄥˋ");
+  ASSERT_GE(unigrams.size(), 2);
+  EXPECT_EQ(unigrams[0].value(), "首選");
+  EXPECT_EQ(unigrams[1].value(), "次選");
+  EXPECT_GT(unigrams[0].score(), unigrams[1].score());
 }
 
 TEST(McBopomofoLMTest, MultipleSyllableUserPhrasesNeedNoRewrite) {

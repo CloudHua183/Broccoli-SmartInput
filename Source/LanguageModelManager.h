@@ -39,6 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)deleteUserPhrase:(NSString *)userPhrase;
 + (BOOL)removeUserPhrase:(NSString *)userPhrase;
 + (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix;
++ (BOOL)smartMixedASCIIPhraseMatches:(NSString *)phrase;
 + (BOOL)userASCIIPhraseHasPrefix:(NSString *)prefix;
 
 + (nullable NSString *)readingFor:(NSString *)phrase;

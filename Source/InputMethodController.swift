@@ -415,16 +415,29 @@ class McBopomofoInputMethodController: IMKInputController {
 // MARK: - Smart User Phrase Shortcut
 
 extension McBopomofoInputMethodController {
+    private enum SmartUserPhraseTargetResult {
+        case success(SmartUserPhraseShortcutTarget)
+        case failure(String)
+    }
+
     private func handleSmartUserPhraseShortcut(_ event: NSEvent, client: Any!) -> Bool {
         guard event.type == .keyDown,
               event.modifierFlags.contains(.control),
               event.modifierFlags.contains(.shift),
               !event.modifierFlags.contains(.command),
               !event.modifierFlags.contains(.option),
-              let length = kSmartUserPhraseNumberKeyLengths[event.keyCode],
-              let target = smartUserPhraseTarget(length: length, client: client)
+              let length = kSmartUserPhraseNumberKeyLengths[event.keyCode]
         else {
             return false
+        }
+
+        let target: SmartUserPhraseShortcutTarget
+        switch smartUserPhraseTarget(length: length, client: client) {
+        case .success(let successTarget):
+            target = successTarget
+        case .failure(let message):
+            notifySmartUserPhraseFailure(message)
+            return true
         }
 
         let phraseToWrite = "\(target.phrase) \(target.reading)"
@@ -448,25 +461,47 @@ extension McBopomofoInputMethodController {
             NotifierController.notify(message: "已將\(target.phrase)字詞加入使用者詞庫中")
         } else {
             lastSmartUserPhraseShortcutTarget = nil
-            NotifierController.notify(message: "\(target.phrase)字詞已存在或無法加入使用者詞庫")
+            if LanguageModelManager.checkIfExist(userPhrase: target.phrase, key: target.reading) {
+                notifySmartUserPhraseFailure("\(target.phrase)字詞已存在於使用者詞庫中")
+            } else {
+                notifySmartUserPhraseFailure("無法將\(target.phrase)加入使用者詞庫：詞庫檔案無法寫入")
+            }
         }
         return true
     }
 
-    private func smartUserPhraseTarget(length: Int, client: Any!) -> SmartUserPhraseShortcutTarget? {
-        guard let cursorText = textBeforeCursor(length: length, client: client),
-              cursorText.text.isEmpty == false,
-              let reading = smartUserPhraseReading(for: cursorText.text),
-              reading.isEmpty == false
-        else {
-            return nil
+    private func notifySmartUserPhraseFailure(_ message: String) {
+        NotifierController.notify(message: message, duration: 10)
+    }
+
+    private func smartUserPhraseTarget(length: Int, client: Any!) -> SmartUserPhraseTargetResult {
+        guard let cursorText = textBeforeCursor(length: length, client: client) else {
+            return .failure("無法加入使用者詞庫：無法取得游標前\(length)個字")
         }
 
-        return SmartUserPhraseShortcutTarget(
+        guard cursorText.text.isEmpty == false else {
+            return .failure("無法加入使用者詞庫：游標前沒有可加入的文字")
+        }
+
+        guard let reading = smartUserPhraseReading(for: cursorText.text),
+              reading.isEmpty == false
+        else {
+            return .failure("無法加入\(cursorText.text)：無法產生詞庫讀音")
+        }
+
+        guard LanguageModelManager.checkIfUserLanguageModelFilesExist() else {
+            return .failure("無法加入\(cursorText.text)：使用者詞庫檔案不存在或無法存取")
+        }
+
+        guard FileManager.default.isWritableFile(atPath: LanguageModelManager.userPhrasesDataPathMcBopomofo) else {
+            return .failure("無法加入\(cursorText.text)：使用者詞庫檔案無法寫入")
+        }
+
+        return .success(SmartUserPhraseShortcutTarget(
             phrase: cursorText.text,
             reading: reading,
             length: length,
-            cursorLocation: cursorText.cursorLocation)
+            cursorLocation: cursorText.cursorLocation))
     }
 
     private func textBeforeCursor(length: Int, client: Any!) -> (text: String, cursorLocation: Int)? {

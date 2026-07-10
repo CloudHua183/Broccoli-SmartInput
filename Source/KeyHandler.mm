@@ -68,6 +68,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     BOOL _smartMixedASCIISequenceActive;
     std::string _smartMixedASCIISequence;
     std::optional<char> _smartMixedASCIIPendingStartChar;
+    std::string _smartMixedPendingKeyRun;
 }
 
 @synthesize delegate = _delegate;
@@ -142,6 +143,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _smartMixedASCIISequenceActive = NO;
         _smartMixedASCIISequence.clear();
         _smartMixedASCIIPendingStartChar = std::nullopt;
+        _smartMixedPendingKeyRun.clear();
     }
     return self;
 }
@@ -304,6 +306,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIISequenceActive = NO;
     _smartMixedASCIISequence.clear();
     _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
 }
 
 - (void)_resetSmartMixedASCIIState
@@ -311,6 +314,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIISequenceActive = NO;
     _smartMixedASCIISequence.clear();
     _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
 }
 
 - (std::string)_lowercaseASCIIString:(const std::string&)value
@@ -326,6 +330,65 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
     return [LanguageModelManager smartMixedASCIIPhraseHasPrefix:prefixString];
+}
+
+- (BOOL)_smartMixedASCIIKnownWordMatches:(const std::string&)phrase
+{
+    NSString *phraseString = [[NSString alloc] initWithUTF8String:phrase.c_str()];
+    return [LanguageModelManager smartMixedASCIIPhraseMatches:phraseString];
+}
+
+- (BOOL)_smartMixedASCIIStringHasVowel:(const std::string&)value
+{
+    for (char tokenChar : value) {
+        switch (std::tolower(static_cast<unsigned char>(tokenChar))) {
+        case 'a':
+        case 'e':
+        case 'i':
+        case 'o':
+        case 'u':
+        case 'y':
+            return YES;
+        default:
+            break;
+        }
+    }
+    return NO;
+}
+
+- (BOOL)_smartMixedPendingKeyRunShouldConvertToASCII
+{
+    if (_smartMixedPendingKeyRun.length() >= 3 && [self _smartMixedASCIIKnownWordMatches:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    if (_smartMixedPendingKeyRun.length() >= 4 && [self _smartMixedASCIIStringHasVowel:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)_convertSmartMixedPendingKeyRunToASCIIWithStateCallback:(void (^)(InputState *))stateCallback
+{
+    if (_smartMixedPendingKeyRun.empty()) {
+        return NO;
+    }
+
+    std::string run = _smartMixedPendingKeyRun;
+    _bpmfReadingBuffer->clear();
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
+
+    for (char tokenChar : run) {
+        if (![self _insertLiteralASCIIChar:tokenChar stateCallback:stateCallback]) {
+            [self _resetSmartMixedASCIIState];
+            return NO;
+        }
+    }
+    _smartMixedASCIISequenceActive = YES;
+    _smartMixedASCIISequence = run;
+    return YES;
 }
 
 - (BOOL)_smartMixedASCIISequenceCanContinueWithChar:(char)ch
@@ -580,6 +643,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         }
 
         if (canStartSmartASCII) {
+            _smartMixedPendingKeyRun.clear();
             if ([self _startSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
                 return YES;
             }
@@ -597,13 +661,23 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         keyConsumedByReading = YES;
         _smartMixedASCIIPendingStartChar = std::nullopt;
 
+        if (Preferences.smartMixedInputEnabled && !_smartMixedASCIISequenceActive && isalpha(static_cast<unsigned char>(charCode))) {
+            _smartMixedPendingKeyRun += std::string(1, static_cast<char>(charCode));
+        } else {
+            _smartMixedPendingKeyRun.clear();
+        }
+
         // if we have a tone marker, we have to insert the reading to the
         // builder in other words, if we don't have a tone marker, we just
         // update the composing buffer
         if (!_bpmfReadingBuffer->hasToneMarker()) {
+            if (Preferences.smartMixedInputEnabled && [self _smartMixedPendingKeyRunShouldConvertToASCII]) {
+                return [self _convertSmartMixedPendingKeyRunToASCIIWithStateCallback:stateCallback];
+            }
             stateCallback([self buildInputtingState]);
             return YES;
         }
+        _smartMixedPendingKeyRun.clear();
     }
 
     // Issue 753
