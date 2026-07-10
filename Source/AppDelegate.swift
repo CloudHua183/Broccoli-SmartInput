@@ -31,6 +31,16 @@ private let kUpdateInfoEndpointKey = "UpdateInfoEndpoint"
 private let kUpdateInfoSiteKey = "UpdateInfoSite"
 private let kNextCheckInterval: TimeInterval = 86400.0
 private let kTimeoutInterval: TimeInterval = 60.0
+private let kBroccoliPatchDictionaryBaseURLKey = "BroccoliPatchDictionaryBaseURL"
+private let kBroccoliPatchReleaseAPIURLKey = "BroccoliPatchReleaseAPIURL"
+private let kBroccoliPatchReleasePageURLKey = "BroccoliPatchReleasePageURL"
+
+private let kDefaultBroccoliPatchDictionaryBaseURL =
+    "https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/smart-mixed-user-phrases/SharedDictionary"
+private let kDefaultBroccoliPatchReleaseAPIURL =
+    "https://api.github.com/repos/CloudHua183/Broccoli-SmartInput/releases/latest"
+private let kDefaultBroccoliPatchReleasePageURL =
+    "https://github.com/CloudHua183/Broccoli-SmartInput/releases/latest"
 
 struct VersionUpdateReport {
     var siteUrl: URL?
@@ -139,6 +149,212 @@ struct VersionUpdateApi {
         }
         task.resume()
         return task
+    }
+}
+
+enum BroccoliPatchError: Error, LocalizedError {
+    case badURL(String)
+    case network(String)
+    case invalidDictionary(String)
+    case fileWrite(String)
+    case noReleaseAsset
+    case noReleaseFound
+
+    var errorDescription: String? {
+        switch self {
+        case .badURL(let value):
+            return "Invalid URL: \(value)"
+        case .network(let message):
+            return message
+        case .invalidDictionary(let message):
+            return message
+        case .fileWrite(let message):
+            return message
+        case .noReleaseAsset:
+            return "No downloadable .dmg, .pkg, or .zip asset was found in the latest GitHub release."
+        case .noReleaseFound:
+            return "No GitHub release was found."
+        }
+    }
+}
+
+struct BroccoliPatchSyncReport {
+    var updatedFiles: [String] = []
+    var backupFiles: [String] = []
+}
+
+struct BroccoliPatchRelease {
+    let tagName: String
+    let htmlURL: URL
+    let assetURL: URL?
+    let assetName: String?
+}
+
+enum BroccoliPatchManager {
+    private static var dictionaryBaseURLString: String {
+        UserDefaults.standard.string(forKey: kBroccoliPatchDictionaryBaseURLKey)
+            ?? kDefaultBroccoliPatchDictionaryBaseURL
+    }
+
+    private static var releaseAPIURLString: String {
+        UserDefaults.standard.string(forKey: kBroccoliPatchReleaseAPIURLKey)
+            ?? kDefaultBroccoliPatchReleaseAPIURL
+    }
+
+    static var releasePageURL: URL {
+        URL(
+            string: UserDefaults.standard.string(forKey: kBroccoliPatchReleasePageURLKey)
+                ?? kDefaultBroccoliPatchReleasePageURL
+        )!
+    }
+
+    static func syncDictionaries() throws -> BroccoliPatchSyncReport {
+        guard LanguageModelManager.checkIfUserLanguageModelFilesExist() else {
+            throw BroccoliPatchError.fileWrite("Cannot create or access \(LanguageModelManager.dataFolderPath).")
+        }
+
+        let base = dictionaryBaseURLString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let smartWords = try downloadText(from: "\(base)/smart-mixed-ascii-words.txt")
+        let userPhrases = try downloadText(from: "\(base)/data.txt")
+        try validateSmartMixedWords(smartWords)
+        try validateUserPhrases(userPhrases)
+
+        var report = BroccoliPatchSyncReport()
+        try writeSyncedFile(smartWords, to: LanguageModelManager.smartMixedASCIIWordsDataPath, report: &report)
+        try writeSyncedFile(userPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
+        LanguageModelManager.loadUserPhrases(enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+        return report
+    }
+
+    static func latestRelease() throws -> BroccoliPatchRelease {
+        let content = try downloadData(from: releaseAPIURLString)
+        guard
+            let json = try JSONSerialization.jsonObject(with: content) as? [String: Any],
+            let tagName = json["tag_name"] as? String,
+            let htmlURLString = json["html_url"] as? String,
+            let htmlURL = URL(string: htmlURLString)
+        else {
+            throw BroccoliPatchError.noReleaseFound
+        }
+
+        let assets = json["assets"] as? [[String: Any]] ?? []
+        let asset = assets.first { item in
+            guard let name = item["name"] as? String else {
+                return false
+            }
+            let lower = name.lowercased()
+            return lower.hasSuffix(".dmg") || lower.hasSuffix(".pkg") || lower.hasSuffix(".zip")
+        }
+        let assetName = asset?["name"] as? String
+        let assetURL = (asset?["browser_download_url"] as? String).flatMap(URL.init(string:))
+        return BroccoliPatchRelease(tagName: tagName, htmlURL: htmlURL, assetURL: assetURL, assetName: assetName)
+    }
+
+    static func downloadLatestReleaseAsset() throws -> URL {
+        let release = try latestRelease()
+        guard let assetURL = release.assetURL, let assetName = release.assetName else {
+            throw BroccoliPatchError.noReleaseAsset
+        }
+
+        let data = try downloadData(from: assetURL.absoluteString)
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let destination = downloads.appendingPathComponent(assetName)
+        try data.write(to: destination, options: .atomic)
+        return destination
+    }
+
+    private static func downloadText(from urlString: String) throws -> String {
+        let data = try downloadData(from: urlString)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw BroccoliPatchError.network("Downloaded content is not UTF-8: \(urlString)")
+        }
+        return text
+    }
+
+    private static func downloadData(from urlString: String) throws -> Data {
+        guard let url = URL(string: urlString) else {
+            throw BroccoliPatchError.badURL(urlString)
+        }
+
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: kTimeoutInterval)
+        request.setValue("Broccoli-SmartInput", forHTTPHeaderField: "User-Agent")
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: Result<Data, Error> = .failure(BroccoliPatchError.network("No response from \(urlString)."))
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            defer {
+                semaphore.signal()
+            }
+            if let error = error {
+                result = .failure(BroccoliPatchError.network(error.localizedDescription))
+                return
+            }
+            if let response = response as? HTTPURLResponse, !(200 ..< 300).contains(response.statusCode) {
+                result = .failure(BroccoliPatchError.network("HTTP \(response.statusCode): \(urlString)"))
+                return
+            }
+            result = .success(data ?? Data())
+        }.resume()
+        semaphore.wait()
+        return try result.get()
+    }
+
+    private static func validateSmartMixedWords(_ content: String) throws {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+        let lines = content.components(separatedBy: .newlines)
+        var validWordCount = 0
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") {
+                continue
+            }
+            if trimmed.rangeOfCharacter(from: allowed.inverted) != nil {
+                throw BroccoliPatchError.invalidDictionary("Invalid smart word at line \(index + 1): \(trimmed)")
+            }
+            validWordCount += 1
+        }
+        if validWordCount == 0 {
+            throw BroccoliPatchError.invalidDictionary("smart-mixed-ascii-words.txt does not contain any usable words.")
+        }
+    }
+
+    private static func validateUserPhrases(_ content: String) throws {
+        let lines = content.components(separatedBy: .newlines)
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") {
+                continue
+            }
+            let parts = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            if parts.count < 2 {
+                throw BroccoliPatchError.invalidDictionary("Invalid user phrase at line \(index + 1): \(trimmed)")
+            }
+        }
+    }
+
+    private static func writeSyncedFile(_ content: String, to path: String, report: inout BroccoliPatchSyncReport) throws {
+        let manager = FileManager.default
+        let fileURL = URL(fileURLWithPath: path)
+        let folderURL = fileURL.deletingLastPathComponent()
+        do {
+            try manager.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            if manager.fileExists(atPath: path) {
+                let backupURL = folderURL.appendingPathComponent("\(fileURL.lastPathComponent).backup-\(backupTimestamp())")
+                try manager.copyItem(at: fileURL, to: backupURL)
+                report.backupFiles.append(backupURL.path)
+            }
+            try content.write(to: fileURL, atomically: true, encoding: .utf8)
+            report.updatedFiles.append(path)
+        } catch {
+            throw BroccoliPatchError.fileWrite(error.localizedDescription)
+        }
+    }
+
+    private static func backupTimestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter.string(from: Date())
     }
 }
 
@@ -317,6 +533,68 @@ extension AppDelegate {
 
     @objc func openPhraseReplacementMcBopomofo(_ sender: Any?) {
         open(userFileAt: LanguageModelManager.phraseReplacementDataPathMcBopomofo)
+    }
+
+    @objc func syncBroccoliPatchDictionaries(_ sender: Any?) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result {
+                try BroccoliPatchManager.syncDictionaries()
+            }
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let report):
+                    let fileList = report.updatedFiles.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", ")
+                    NonModalAlertWindowController.shared.show(
+                        title: "GitHub 詞庫同步完成",
+                        content: "已更新：\(fileList)",
+                        confirmButtonTitle: NSLocalizedString("OK", comment: ""),
+                        cancelButtonTitle: nil,
+                        cancelAsDefault: false,
+                        delegate: nil)
+                case .failure(let error):
+                    NonModalAlertWindowController.shared.show(
+                        title: "GitHub 詞庫同步失敗",
+                        content: error.localizedDescription,
+                        confirmButtonTitle: NSLocalizedString("OK", comment: ""),
+                        cancelButtonTitle: nil,
+                        cancelAsDefault: false,
+                        delegate: nil)
+                }
+            }
+        }
+    }
+
+    @objc func openBroccoliLatestRelease(_ sender: Any?) {
+        NSWorkspace.shared.open(BroccoliPatchManager.releasePageURL)
+    }
+
+    @objc func downloadBroccoliLatestRelease(_ sender: Any?) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result {
+                try BroccoliPatchManager.downloadLatestReleaseAsset()
+            }
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let destination):
+                    NonModalAlertWindowController.shared.show(
+                        title: "GitHub 最新 Release 已下載",
+                        content: destination.path,
+                        confirmButtonTitle: NSLocalizedString("OK", comment: ""),
+                        cancelButtonTitle: nil,
+                        cancelAsDefault: false,
+                        delegate: nil)
+                    NSWorkspace.shared.open(destination)
+                case .failure(let error):
+                    NonModalAlertWindowController.shared.show(
+                        title: "GitHub Release 下載失敗",
+                        content: error.localizedDescription,
+                        confirmButtonTitle: NSLocalizedString("OK", comment: ""),
+                        cancelButtonTitle: nil,
+                        cancelAsDefault: false,
+                        delegate: nil)
+                }
+            }
+        }
     }
 }
 

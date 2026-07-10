@@ -1,4 +1,4 @@
-# Smart mixed input ASCII words.
+# Smart mixed input ASCII words shared across Broccoli SmartInput installs.
 # One word per line. Lines starting with # are ignored.
 meeting
 call

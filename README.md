@@ -56,6 +56,51 @@
 - 框選查詢 companion app。
 - Apple Developer 簽章與 notarization。
 
+## GitHub Patch / 多台電腦同步
+
+公開共享詞庫目錄：
+
+- `SharedDictionary/smart-mixed-ascii-words.txt`
+  - 多台電腦共用的指定英文 / 產品名白名單。
+- `SharedDictionary/data.txt`
+  - 多台電腦共用的使用者詞庫。
+
+安裝後，每台電腦可用輸入法選單執行：
+
+```text
+同步 GitHub 詞庫
+```
+
+也可用 CLI：
+
+```bash
+/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
+```
+
+同步會從 GitHub public repo 下載 `SharedDictionary/`，驗證格式、備份本機舊檔，然後覆蓋：
+
+```text
+~/Library/Application Support/McBopomofo/data.txt
+~/Library/Application Support/McBopomofo/smart-mixed-ascii-words.txt
+```
+
+GitHub Release patch 功能：
+
+```bash
+/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch check-release
+/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch download-release
+/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch open-release
+```
+
+輸入法選單也有：
+
+```text
+開啟 GitHub 最新 Release…
+下載 GitHub 最新 Release…
+```
+
+注意：public repo 可讓每台電腦讀取最新詞庫；要把本機新增詞回寫到 GitHub，仍需用一般 git commit / push 流程，避免在輸入法內保存 GitHub token。
+
 ## 常用本機指令
 
 推送目前分支：

@@ -604,6 +604,54 @@ class KeyHandlerBopomofoTests: XCTestCase {
         }
     }
 
+    func testSmartMixedLowercaseASCIISequenceKeepsChromeUntilFullKnownWord() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("chrome", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "chrome")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsTestingUntilFullKnownWord() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("testing", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "testing")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceReturnsToChineseBeforeDigitBopomofoReading() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("chrome204", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "chrome但")
+        }
+    }
+
     func testSmartMixedASCIISequenceDoesNotHijackBopomofoPrefix() {
         let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.associatedPhrasesEnabled = false

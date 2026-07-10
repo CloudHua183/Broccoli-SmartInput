@@ -1,0 +1,39 @@
+# 手動加詞資料檔
+#
+# 這份檔案是 Broccoli SmartInput 的 GitHub 共用使用者詞庫。
+# 每台電腦可用「同步 GitHub 詞庫」或 `McBopomofo patch sync` 對齊這份檔案。
+#
+# 格式：每個詞後面接讀音，注音音節之間用 "-" 分隔。
+
+Cloud _letter_C-_letter_L-_letter_O-_letter_U-_letter_D
+花嘉忻 ㄏㄨㄚ-ㄐㄧㄚ-ㄒㄧㄣ
+花郁喬 ㄏㄨㄚ-ㄩˋ-ㄑㄧㄠˊ
+呂婉蓉 ㄌㄩˇ-ㄨㄢˇ-ㄖㄨㄥˊ
+花雲挺 ㄏㄨㄚ-ㄩㄣˊ-ㄊㄧㄥˇ
+apple _letter_A-_letter_P-_letter_P-_letter_L-_letter_E
+中埔 ㄓㄨㄥ-ㄆㄨˇ
+word _letter_W-_letter_O-_letter_R-_letter_D
+鎧真傳 ㄎㄞˇ-ㄓㄣ-ㄔㄨㄢˊ
+1. _numpad_1-_half_punctuation_ETen26_.
+2. _numpad_2-_half_punctuation_ETen26_.
+綠幕 ㄌㄩˋ-ㄇㄨˋ
+金先生 ㄐㄧㄣ-ㄒㄧㄢ-ㄕㄥ
+入帳 ㄖㄨˋ-ㄓㄤˋ
+捕蚊 ㄅㄨˇ-ㄨㄣˊ
+金澤 ㄐㄧㄣ-ㄗㄜˊ
+去背 ㄑㄩˋ-ㄅㄟˋ
+羽生 ㄩˇ-ㄕㄥ
+蓮田 ㄌㄧㄢˊ-ㄊㄧㄢˊ
+Readme _letter_R-_letter_E-_letter_A-_letter_D-_letter_M-_letter_E
+Marker _letter_M-_letter_A-_letter_R-_letter_K-_letter_E-_letter_R
+三芳 ㄙㄢ-ㄈㄤ
+二頭身 ㄦˋ-ㄊㄡˊ-ㄕㄣ
+競業 ㄐㄧㄥˋ-ㄧㄝˋ
+正觀 ㄓㄥˋ-ㄍㄨㄢ
+十乘法門 _punctuation_list-ㄔㄥˊ-ㄈㄚˇ-ㄇㄣˊ
+止觀 ㄓˇ-ㄍㄨㄢ
+彈窗 ㄊㄢˊ-ㄔㄨㄤ
+下載 ㄒㄧㄚˋ-ㄗㄞˇ
+陵線 ㄌㄧㄥˊ-ㄒㄧㄢˋ
+錨點 ㄇㄠˊ-ㄉㄧㄢˇ
+chrome _letter_C-_letter_H-_letter_R-_letter_O-_letter_M-_letter_E

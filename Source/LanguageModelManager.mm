@@ -43,7 +43,51 @@ static NSString *const kUserDataPlainBopomofoTemplateName = @"template-data-plai
 static NSString *const kExcludedPhrasesMcBopomofoTemplateName = @"template-exclude-phrases";
 static NSString *const kExcludedPhrasesPlainBopomofoTemplateName = @"template-exclude-phrases-plain-bpmf";
 static NSString *const kPhraseReplacementTemplateName = @"template-phrases-replacement";
+static NSString *const kSmartMixedASCIIWordsTemplateName = @"smart-mixed-ascii-words";
 static NSString *const kTemplateExtension = @".txt";
+
+static NSCharacterSet *SmartMixedASCIILettersAndDigits()
+{
+    static NSCharacterSet *set = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        set = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    });
+    return set;
+}
+
+static void LoadSmartMixedSystemDictionary(NSMutableSet<NSString *> **words, NSMutableSet<NSString *> **prefixes)
+{
+    static NSMutableSet<NSString *> *cachedWords = nil;
+    static NSMutableSet<NSString *> *cachedPrefixes = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cachedWords = [[NSMutableSet alloc] init];
+        cachedPrefixes = [[NSMutableSet alloc] init];
+
+        NSString *content = [[NSString alloc] initWithContentsOfFile:@"/usr/share/dict/words"
+                                                            encoding:NSUTF8StringEncoding
+                                                               error:nil];
+        NSArray<NSString *> *lines = [content componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+        NSCharacterSet *allowedSet = SmartMixedASCIILettersAndDigits();
+        for (NSString *line in lines) {
+            NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].lowercaseString;
+            if (word.length < 3 || [word rangeOfCharacterFromSet:allowedSet.invertedSet].location != NSNotFound) {
+                continue;
+            }
+            [cachedWords addObject:word];
+            if (word.length <= 3) {
+                continue;
+            }
+            for (NSUInteger length = 2; length < word.length; ++length) {
+                [cachedPrefixes addObject:[word substringToIndex:length]];
+            }
+        }
+    });
+
+    *words = cachedWords;
+    *prefixes = cachedPrefixes;
+}
 
 @implementation LanguageModelManager
 
@@ -234,6 +278,9 @@ static void LTLoadVariantAnnotatorData()
     if (![self ensureFileExists:[self phraseReplacementDataPathMcBopomofo] populateWithTemplate:kPhraseReplacementTemplateName extension:kTemplateExtension]) {
         return NO;
     }
+    if (![self ensureFileExists:[self smartMixedASCIIWordsDataPath] populateWithTemplate:kSmartMixedASCIIWordsTemplateName extension:kTemplateExtension]) {
+        return NO;
+    }
     return YES;
 }
 
@@ -392,7 +439,7 @@ static void LTLoadVariantAnnotatorData()
         return NO;
     }
 
-    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
     NSArray *lines = [content componentsSeparatedByString:@"\n"];
     for (NSString *line in lines) {
         NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -435,7 +482,7 @@ static void LTLoadVariantAnnotatorData()
         return NO;
     }
 
-    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
     NSArray *lines = [content componentsSeparatedByString:@"\n"];
     for (NSString *line in lines) {
         NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -479,7 +526,7 @@ static void LTLoadVariantAnnotatorData()
     }
 
     NSString *lowercasePrefix = prefix.lowercaseString;
-    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
     NSArray *lines = [content componentsSeparatedByString:@"\n"];
     for (NSString *line in lines) {
         NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -515,7 +562,77 @@ static void LTLoadVariantAnnotatorData()
     }
 
     NSString *lowercasePhrase = phrase.lowercaseString;
-    NSCharacterSet *asciiLettersAndDigits = [NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"];
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (word.length == 0 || [word hasPrefix:@"#"]) {
+            continue;
+        }
+        if ([word rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+        if ([word.lowercaseString isEqualToString:lowercasePhrase]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
++ (BOOL)localSmartMixedASCIIWordHasPrefix:(NSString *)prefix
+{
+    if (prefix.length == 0) {
+        return NO;
+    }
+
+    NSString *path = [self smartMixedASCIIWordsDataPath];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSString *lowercasePrefix = prefix.lowercaseString;
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
+    NSArray *lines = [content componentsSeparatedByString:@"\n"];
+    for (NSString *line in lines) {
+        NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (word.length == 0 || [word hasPrefix:@"#"]) {
+            continue;
+        }
+        if ([word rangeOfCharacterFromSet:asciiLettersAndDigits.invertedSet].location != NSNotFound) {
+            continue;
+        }
+        if ([word.lowercaseString hasPrefix:lowercasePrefix]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
++ (BOOL)localSmartMixedASCIIWordMatches:(NSString *)phrase
+{
+    if (phrase.length == 0) {
+        return NO;
+    }
+
+    NSString *path = [self smartMixedASCIIWordsDataPath];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        return NO;
+    }
+
+    NSError *error = nil;
+    NSString *content = [[NSString alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] encoding:NSUTF8StringEncoding error:&error];
+    if (error != nil) {
+        return NO;
+    }
+
+    NSString *lowercasePhrase = phrase.lowercaseString;
+    NSCharacterSet *asciiLettersAndDigits = SmartMixedASCIILettersAndDigits();
     NSArray *lines = [content componentsSeparatedByString:@"\n"];
     for (NSString *line in lines) {
         NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -534,12 +651,36 @@ static void LTLoadVariantAnnotatorData()
 
 + (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix
 {
-    return [self bundledSmartMixedASCIIWordHasPrefix:prefix] || [self userASCIIPhraseHasPrefix:prefix];
+    return [self bundledSmartMixedASCIIWordHasPrefix:prefix] || [self localSmartMixedASCIIWordHasPrefix:prefix] || [self userASCIIPhraseHasPrefix:prefix];
 }
 
 + (BOOL)smartMixedASCIIPhraseMatches:(NSString *)phrase
 {
-    return [self bundledSmartMixedASCIIWordMatches:phrase] || [self userASCIIPhraseMatches:phrase];
+    return [self bundledSmartMixedASCIIWordMatches:phrase] || [self localSmartMixedASCIIWordMatches:phrase] || [self userASCIIPhraseMatches:phrase];
+}
+
++ (BOOL)smartMixedSystemDictionaryASCIIWordHasPrefix:(NSString *)prefix
+{
+    if (prefix.length < 2 || [prefix rangeOfCharacterFromSet:SmartMixedASCIILettersAndDigits().invertedSet].location != NSNotFound) {
+        return NO;
+    }
+
+    NSMutableSet<NSString *> *words = nil;
+    NSMutableSet<NSString *> *prefixes = nil;
+    LoadSmartMixedSystemDictionary(&words, &prefixes);
+    return [prefixes containsObject:prefix.lowercaseString];
+}
+
++ (BOOL)smartMixedSystemDictionaryASCIIWordMatches:(NSString *)phrase
+{
+    if (phrase.length < 3 || [phrase rangeOfCharacterFromSet:SmartMixedASCIILettersAndDigits().invertedSet].location != NSNotFound) {
+        return NO;
+    }
+
+    NSMutableSet<NSString *> *words = nil;
+    NSMutableSet<NSString *> *prefixes = nil;
+    LoadSmartMixedSystemDictionary(&words, &prefixes);
+    return [words containsObject:phrase.lowercaseString];
 }
 
 + (BOOL)writeUserPhrase:(NSString *)userPhrase
@@ -626,6 +767,11 @@ static void LTLoadVariantAnnotatorData()
 + (NSString *)phraseReplacementDataPathMcBopomofo
 {
     return [[self dataFolderPath] stringByAppendingPathComponent:@"phrases-replacement.txt"];
+}
+
++ (NSString *)smartMixedASCIIWordsDataPath
+{
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"smart-mixed-ascii-words.txt"];
 }
 
 + (McBopomofo::McBopomofoLM *)languageModelMcBopomofo

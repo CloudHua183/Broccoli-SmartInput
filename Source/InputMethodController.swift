@@ -161,6 +161,9 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: NSLocalizedString("Reload User Phrases", comment: ""),
             action: #selector(reloadUserPhrases(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "同步 GitHub 詞庫",
+            action: #selector(syncBroccoliPatchDictionaries(_:)), keyEquivalent: "")
 
         if !McBopomofoInputMethodController.latestUserFileIssues.isEmpty {
             // Setting menuItem.image does not work in input method menus even on macOS 26,
@@ -179,6 +182,12 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: NSLocalizedString("Check for Updates…", comment: ""),
             action: #selector(checkForUpdate(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "開啟 GitHub 最新 Release…",
+            action: #selector(openBroccoliLatestRelease(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "下載 GitHub 最新 Release…",
+            action: #selector(downloadBroccoliLatestRelease(_:)), keyEquivalent: "")
         menu.addItem(
             withTitle: NSLocalizedString("About McBopomofo…", comment: ""),
             action: #selector(showAbout(_:)), keyEquivalent: "")
@@ -369,6 +378,18 @@ class McBopomofoInputMethodController: IMKInputController {
 
     @objc func openPhraseReplacementMcBopomofo(_ sender: Any?) {
         (NSApp.delegate as? AppDelegate)?.openPhraseReplacementMcBopomofo(sender)
+    }
+
+    @objc func syncBroccoliPatchDictionaries(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.syncBroccoliPatchDictionaries(sender)
+    }
+
+    @objc func openBroccoliLatestRelease(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.openBroccoliLatestRelease(sender)
+    }
+
+    @objc func downloadBroccoliLatestRelease(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.downloadBroccoliLatestRelease(sender)
     }
 
     @objc func reloadUserPhrases(_ sender: Any?) {

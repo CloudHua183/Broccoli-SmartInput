@@ -338,6 +338,18 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return [LanguageModelManager smartMixedASCIIPhraseMatches:phraseString];
 }
 
+- (BOOL)_smartMixedSystemDictionaryWordHasPrefix:(const std::string&)prefix
+{
+    NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
+    return [LanguageModelManager smartMixedSystemDictionaryASCIIWordHasPrefix:prefixString];
+}
+
+- (BOOL)_smartMixedSystemDictionaryWordMatches:(const std::string&)phrase
+{
+    NSString *phraseString = [[NSString alloc] initWithUTF8String:phrase.c_str()];
+    return [LanguageModelManager smartMixedSystemDictionaryASCIIWordMatches:phraseString];
+}
+
 - (BOOL)_smartMixedASCIIStringHasVowel:(const std::string&)value
 {
     for (char tokenChar : value) {
@@ -361,7 +373,19 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     if (_smartMixedPendingKeyRun.length() >= 3 && [self _smartMixedASCIIKnownWordMatches:_smartMixedPendingKeyRun]) {
         return YES;
     }
-    if (_smartMixedPendingKeyRun.length() >= 4 && [self _smartMixedASCIIStringHasVowel:_smartMixedPendingKeyRun]) {
+    if ([self _smartMixedSystemDictionaryWordHasPrefix:_smartMixedPendingKeyRun] && _smartMixedPendingKeyRun.length() < 6) {
+        return NO;
+    }
+    if (_smartMixedPendingKeyRun.length() >= 6 && [self _smartMixedSystemDictionaryWordMatches:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    if ([self _smartMixedSystemDictionaryWordHasPrefix:_smartMixedPendingKeyRun]) {
+        return NO;
+    }
+    if ([self _smartMixedASCIIKnownWordHasPrefix:_smartMixedPendingKeyRun]) {
+        return NO;
+    }
+    if (_smartMixedPendingKeyRun.length() >= 6 && [self _smartMixedASCIIStringHasVowel:_smartMixedPendingKeyRun]) {
         return YES;
     }
     return NO;
@@ -402,17 +426,22 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return YES;
     }
 
-    if (isdigit(ch)) {
-        return YES;
-    }
-
     BOOL currentIsUppercaseAcronym = YES;
+    BOOL currentHasDigit = NO;
     for (char tokenChar : _smartMixedASCIISequence) {
-        if (isalpha(tokenChar) && !isupper(tokenChar)) {
+        unsigned char unsignedTokenChar = static_cast<unsigned char>(tokenChar);
+        if (isdigit(unsignedTokenChar)) {
+            currentHasDigit = YES;
+        }
+        if (isalpha(unsignedTokenChar) && !isupper(unsignedTokenChar)) {
             currentIsUppercaseAcronym = NO;
-            break;
         }
     }
+
+    if (isdigit(static_cast<unsigned char>(ch))) {
+        return currentHasDigit || currentIsUppercaseAcronym;
+    }
+
     return currentIsUppercaseAcronym && isupper(ch);
 }
 

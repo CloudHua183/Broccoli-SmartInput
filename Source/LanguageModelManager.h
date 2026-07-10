@@ -40,6 +40,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)removeUserPhrase:(NSString *)userPhrase;
 + (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix;
 + (BOOL)smartMixedASCIIPhraseMatches:(NSString *)phrase;
++ (BOOL)smartMixedSystemDictionaryASCIIWordHasPrefix:(NSString *)prefix;
++ (BOOL)smartMixedSystemDictionaryASCIIWordMatches:(NSString *)phrase;
 + (BOOL)userASCIIPhraseHasPrefix:(NSString *)prefix;
 
 + (nullable NSString *)readingFor:(NSString *)phrase;
@@ -50,6 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (class, readonly, nonatomic) NSString *excludedPhrasesDataPathMcBopomofo;
 @property (class, readonly, nonatomic) NSString *excludedPhrasesDataPathPlainBopomofo;
 @property (class, readonly, nonatomic) NSString *phraseReplacementDataPathMcBopomofo;
+@property (class, readonly, nonatomic) NSString *smartMixedASCIIWordsDataPath;
 @property (class, assign, nonatomic) BOOL phraseReplacementEnabled;
 
 @end
