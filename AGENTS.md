@@ -6,6 +6,10 @@ This file provides guidance to AI coding assistants when working with code in th
 
 McBopomofo (小麥注音輸入法) is a Traditional Chinese input method engine for macOS that enables users to input Traditional Chinese characters using the Bopomofo phonetic system (注音符號). The app also supports two Taiwanese Braille formats, Unicode and ASCII. The project is built with Swift (UI/state management), Objective-C++ (bridge layer), and C++ (core engine), using macOS Input Method Kit (IMK) framework.
 
+## Versioning Policy
+
+This fork uses semantic versions in `VERSION`, `Source/McBopomofo-Info.plist`, and `Source/Installer/Installer-Info.plist`. Every completed behavior change, packaging change, or installable build update must bump the patch version before publishing, for example from `v1.0.0` to `v1.0.1`, so the running local input method can be compared with GitHub install files.
+
 ## System Requirements
 
 **Runtime:** macOS 10.15 (Catalina) or later

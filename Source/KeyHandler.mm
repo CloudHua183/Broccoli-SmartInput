@@ -505,6 +505,32 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return YES;
 }
 
+- (BOOL)_insertSmartMixedPunctuationValue:(NSString *)value
+                                  reading:(const std::string&)reading
+                            stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (value.length == 0) {
+        return NO;
+    }
+
+    if (!_grid->insertReading(reading)) {
+        return NO;
+    }
+
+    std::string candidateValue(value.UTF8String);
+    Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading, candidateValue);
+    if (!_grid->overrideCandidate(_grid->cursor() - 1, candidate, Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithHighScore)) {
+        _grid->deleteReadingBeforeCursor();
+        [self _walk];
+        return NO;
+    }
+
+    [self _walk];
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    stateCallback(inputting);
+    return YES;
+}
+
 - (BOOL)_startSmartMixedASCIISequenceWithChar:(char)ch
                                 stateCallback:(void (^)(InputState *))stateCallback
 {
@@ -538,45 +564,59 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                                   stateCallback:(void (^)(InputState *))stateCallback
                                   errorCallback:(void (^)(void))errorCallback
 {
-    NSString *inputText = input.inputText;
-    if (inputText.length != 1) {
+    BOOL shouldConsiderShiftArrowShortcut =
+        input.isShiftHold && !input.isCommandHold && !input.isOptionHold && !input.isControlHold;
+    if (!shouldConsiderShiftArrowShortcut) {
         if (_smartMixedArrowShortcutPendingInput != nil) {
             NSString *pending = _smartMixedArrowShortcutPendingInput;
             [self _resetSmartMixedArrowShortcutState];
-            stateCallback([[InputStateCommitting alloc] initWithPoppedText:pending]);
-            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
-            return [self handleInput:input state:[[InputStateEmptyIgnoringPreviousState alloc] init] stateCallback:stateCallback errorCallback:errorCallback];
+            [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+            return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
         }
         return NO;
     }
 
-    BOOL isDash = [inputText isEqualToString:@"-"];
-    BOOL isRightArrowText = [inputText isEqualToString:@">"];
-    BOOL isEr = [inputText isEqualToString:@"ㄦ"];
-    BOOL isFullWidthPeriod = [inputText isEqualToString:@"。"];
+    BOOL isMinusKey = input.keyCode == 27;
+    BOOL isPeriodKey = input.keyCode == 47;
+    BOOL isCommaKey = input.keyCode == 43;
+    if (!isMinusKey && !isPeriodKey && !isCommaKey) {
+        if (_smartMixedArrowShortcutPendingInput != nil) {
+            NSString *pending = _smartMixedArrowShortcutPendingInput;
+            [self _resetSmartMixedArrowShortcutState];
+            [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+            return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
+        }
+        return NO;
+    }
+
+    NSString *inputText = input.inputText;
+    if (inputText.length == 0) {
+        inputText = input.inputTextIgnoringModifiers;
+    }
+
+    if (inputText.length == 0) {
+        inputText = isMinusKey ? @"-" : @".";
+    }
 
     if (_smartMixedArrowShortcutPendingInput != nil) {
         NSString *pending = _smartMixedArrowShortcutPendingInput;
-        if ([pending isEqualToString:@"-"] && isRightArrowText) {
+        if (isPeriodKey || isCommaKey) {
             [self _resetSmartMixedArrowShortcutState];
-            stateCallback([[InputStateCommitting alloc] initWithPoppedText:@"→"]);
-            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
-            return YES;
-        }
-        if ([pending isEqualToString:@"ㄦ"] && isFullWidthPeriod) {
-            [self _resetSmartMixedArrowShortcutState];
-            stateCallback([[InputStateCommitting alloc] initWithPoppedText:@"→"]);
+            NSString *arrow = isCommaKey ? @"←" : @"→";
+            if ([state isKindOfClass:[InputStateNotEmpty class]] || _grid->length() > 0 || !_bpmfReadingBuffer->isEmpty()) {
+                return [self _insertSmartMixedPunctuationValue:arrow reading:"_punctuation_list" stateCallback:stateCallback];
+            }
+            stateCallback([[InputStateCommitting alloc] initWithPoppedText:arrow]);
             stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
             return YES;
         }
 
         [self _resetSmartMixedArrowShortcutState];
-        stateCallback([[InputStateCommitting alloc] initWithPoppedText:pending]);
-        stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
-        return [self handleInput:input state:[[InputStateEmptyIgnoringPreviousState alloc] init] stateCallback:stateCallback errorCallback:errorCallback];
+        [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+        return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
     }
 
-    if (isDash || isEr) {
+    if (input.keyCode == 27) {
         _smartMixedArrowShortcutPendingInput = inputText;
         return YES;
     }

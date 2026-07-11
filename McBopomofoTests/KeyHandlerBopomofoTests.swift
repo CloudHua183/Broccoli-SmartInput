@@ -75,6 +75,81 @@ class KeyHandlerBopomofoTests: XCTestCase {
         state = currentState
     }
 
+    private func assertSmartMixedArrowShortcut(
+        closingText: String,
+        closingKeyCode: UInt16,
+        closingTextIgnoringModifiers: String,
+        expectedArrow: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var state: InputState = InputState.Empty()
+        var commitState: InputState?
+
+        let dash = KeyHandlerInput(
+            inputText: "—", keyCode: 27, charCode: charCode("—"), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: "-")
+        handler.handle(input: dash, state: state) { newState in
+            state = newState
+            if newState is InputState.Committing {
+                commitState = newState
+            }
+        } errorCallback: {
+        }
+
+        let closing = KeyHandlerInput(
+            inputText: closingText, keyCode: closingKeyCode,
+            charCode: charCode(closingText), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: closingTextIgnoringModifiers)
+        handler.handle(input: closing, state: state) { newState in
+            state = newState
+            if newState is InputState.Committing {
+                commitState = newState
+            }
+        } errorCallback: {
+        }
+
+        XCTAssertTrue(state is InputState.EmptyIgnoringPreviousState, file: file, line: line)
+        XCTAssertTrue(commitState is InputState.Committing, file: file, line: line)
+        if let commitState = commitState as? InputState.Committing {
+            XCTAssertEqual(commitState.poppedText, expectedArrow, file: file, line: line)
+        }
+    }
+
+    private func assertSmartMixedArrowShortcutPreservesComposition(
+        closingText: String,
+        closingKeyCode: UInt16,
+        closingTextIgnoringModifiers: String,
+        expectedArrow: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+
+        let dash = KeyHandlerInput(
+            inputText: "—", keyCode: 27, charCode: charCode("—"), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: "-")
+        handler.handle(input: dash, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+
+        let closing = KeyHandlerInput(
+            inputText: closingText, keyCode: closingKeyCode,
+            charCode: charCode(closingText), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: closingTextIgnoringModifiers)
+        handler.handle(input: closing, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+
+        XCTAssertTrue(state is InputState.Inputting, file: file, line: line)
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好\(expectedArrow)", file: file, line: line)
+        }
+    }
+
     func testSyncWithPreferences() {
         let savedKeyboardLayout = Preferences.keyboardLayout
         Preferences.keyboardLayout = .standard
@@ -97,6 +172,30 @@ class KeyHandlerBopomofoTests: XCTestCase {
 
         Preferences.keyboardLayout = savedKeyboardLayout
         handler.syncWithPreferences()
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthPeriod() {
+        assertSmartMixedArrowShortcut(
+            closingText: "。", closingKeyCode: 47, closingTextIgnoringModifiers: ".",
+            expectedArrow: "→")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthComma() {
+        assertSmartMixedArrowShortcut(
+            closingText: "，", closingKeyCode: 43, closingTextIgnoringModifiers: ",",
+            expectedArrow: "←")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthPeriodPreservesComposition() {
+        assertSmartMixedArrowShortcutPreservesComposition(
+            closingText: "。", closingKeyCode: 47, closingTextIgnoringModifiers: ".",
+            expectedArrow: "→")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthCommaPreservesComposition() {
+        assertSmartMixedArrowShortcutPreservesComposition(
+            closingText: "，", closingKeyCode: 43, closingTextIgnoringModifiers: ",",
+            expectedArrow: "←")
     }
 
     func testIgnoreEmpty() {

@@ -18,6 +18,8 @@ __pycache__
 codecov_comment.md
 DerivedData
 dist/
+!Website/downloads/*.dmg
+!Website/downloads/*.pkg
 SharedDictionary/*.txt
 !SharedDictionary/*.example.txt
 SharedDictionary/patch-source.json

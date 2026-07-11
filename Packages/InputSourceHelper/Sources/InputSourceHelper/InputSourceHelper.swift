@@ -58,6 +58,22 @@ public class InputSourceHelper: NSObject {
         inputSource(for: kTISPropertyInputSourceID, stringValue: sourceID)
     }
 
+    @objc(inputMode:forInputSourceBundleID:)
+    public static func inputMode(_ modeID: String, for bundleID: String) -> TISInputSource? {
+        for source in allInstalledInputSources() {
+            guard let bundleIDPtr = TISGetInputSourceProperty(source, kTISPropertyBundleID),
+                  let modePtr = TISGetInputSourceProperty(source, kTISPropertyInputModeID) else {
+                continue
+            }
+            let inputsSourceBundleID = Unmanaged<CFString>.fromOpaque(bundleIDPtr).takeUnretainedValue()
+            let inputsSourceModeID = Unmanaged<CFString>.fromOpaque(modePtr).takeUnretainedValue()
+            if modeID == String(inputsSourceModeID) && bundleID == String(inputsSourceBundleID) {
+                return source
+            }
+        }
+        return nil
+    }
+
     @objc(inputSourceEnabled:)
     public static func inputSourceEnabled(for source: TISInputSource) -> Bool {
         if let valuePts = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsEnabled) {
@@ -70,6 +86,12 @@ public class InputSourceHelper: NSObject {
     @objc(enableInputSource:)
     public static func enable(inputSource: TISInputSource) -> Bool {
         let status = TISEnableInputSource(inputSource)
+        return status == noErr
+    }
+
+    @objc(selectInputSource:)
+    public static func select(inputSource: TISInputSource) -> Bool {
+        let status = TISSelectInputSource(inputSource)
         return status == noErr
     }
 
@@ -96,19 +118,10 @@ public class InputSourceHelper: NSObject {
 
     @objc(enableInputMode:forInputSourceBundleID:)
     public static func enable(inputMode modeID: String, for bundleID: String) -> Bool {
-        for source in allInstalledInputSources() {
-            guard let bundleIDPtr = TISGetInputSourceProperty(source, kTISPropertyBundleID),
-                  let modePtr = TISGetInputSourceProperty(source, kTISPropertyInputModeID) else {
-                continue
-            }
-            let inputsSourceBundleID = Unmanaged<CFString>.fromOpaque(bundleIDPtr).takeUnretainedValue()
-            let inputsSourceModeID = Unmanaged<CFString>.fromOpaque(modePtr).takeUnretainedValue()
-            if modeID == String(inputsSourceModeID) && bundleID == String(inputsSourceBundleID) {
-                let enabled = enable(inputSource: source)
-                print("Attempt to enable input source of mode: \(modeID), bundle ID: \(bundleID), result: \(enabled)")
-                return enabled
-            }
-
+        if let source = inputMode(modeID, for: bundleID) {
+            let enabled = enable(inputSource: source)
+            print("Attempt to enable input source of mode: \(modeID), bundle ID: \(bundleID), result: \(enabled)")
+            return enabled
         }
         print("Failed to find any matching input source of mode: \(modeID), bundle ID: \(bundleID)")
         return false
@@ -128,4 +141,3 @@ public class InputSourceHelper: NSObject {
     }
 
 }
-

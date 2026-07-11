@@ -9,9 +9,8 @@ DIST_DIR="$ROOT_DIR/dist"
 STAGING_DIR="$DIST_DIR/personal-installer-staging"
 SCRIPTS_DIR="$STAGING_DIR/scripts"
 APP_SOURCE="$DERIVED_DATA_PATH/Build/Products/Release/McBopomofo.app"
-USER_DATA_SOURCE="$HOME/Library/Application Support/McBopomofo"
-VERSION="$(/usr/bin/plutil -extract CFBundleVersion raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
-PKG_PATH="$DIST_DIR/HuayeInput-r${VERSION}-personal.pkg"
+VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
+PKG_PATH="$DIST_DIR/HuayeInput-v${VERSION}-personal.pkg"
 
 /bin/mkdir -p "$DIST_DIR"
 /bin/rm -rf "$STAGING_DIR"
@@ -32,11 +31,7 @@ fi
 
 /usr/bin/ditto --norsrc "$APP_SOURCE" "$SCRIPTS_DIR/McBopomofo.app"
 
-if [[ -d "$USER_DATA_SOURCE" ]]; then
-  /usr/bin/ditto --norsrc "$USER_DATA_SOURCE" "$SCRIPTS_DIR/UserData"
-else
-  /bin/mkdir -p "$SCRIPTS_DIR/UserData"
-fi
+/bin/mkdir -p "$SCRIPTS_DIR/UserData"
 
 /bin/cat > "$SCRIPTS_DIR/postinstall" <<'POSTINSTALL'
 #!/bin/zsh
@@ -79,7 +74,7 @@ fi
 /usr/bin/find "$TARGET_APP" "$SUPPORT_DIR" -name '._*' -delete >/dev/null 2>&1 || true
 /usr/sbin/chown -R "$CONSOLE_USER":staff "$TARGET_APP" "$SUPPORT_DIR"
 
-/bin/launchctl asuser "$USER_ID" /usr/bin/sudo -u "$CONSOLE_USER" "$TARGET_APP/Contents/MacOS/McBopomofo" install --all >/dev/null 2>&1 || true
+/bin/launchctl asuser "$USER_ID" /usr/bin/sudo -u "$CONSOLE_USER" "$TARGET_APP/Contents/MacOS/McBopomofo" install --all --select >/dev/null 2>&1 || true
 
 exit 0
 POSTINSTALL
