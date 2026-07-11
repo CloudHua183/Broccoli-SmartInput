@@ -1,0 +1,11 @@
+# Broccoli SmartInput user phrase dictionary example.
+#
+# Keep your real data.txt outside this public GitHub repo.
+# Put the private file in Google Drive and configure:
+# ~/Library/Application Support/McBopomofo/patch-source.json
+#
+# Format follows McBopomofo user phrases:
+# phrase reading
+#
+# Example:
+OpenAI _letter_O _letter_P _letter_E _letter_N _letter_A _letter_I

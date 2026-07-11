@@ -31,12 +31,12 @@ private let kUpdateInfoEndpointKey = "UpdateInfoEndpoint"
 private let kUpdateInfoSiteKey = "UpdateInfoSite"
 private let kNextCheckInterval: TimeInterval = 86400.0
 private let kTimeoutInterval: TimeInterval = 60.0
-private let kBroccoliPatchDictionaryBaseURLKey = "BroccoliPatchDictionaryBaseURL"
+private let kBroccoliPatchSmartMixedASCIIWordsURLKey = "BroccoliPatchSmartMixedASCIIWordsURL"
+private let kBroccoliPatchUserPhrasesURLKey = "BroccoliPatchUserPhrasesURL"
 private let kBroccoliPatchReleaseAPIURLKey = "BroccoliPatchReleaseAPIURL"
 private let kBroccoliPatchReleasePageURLKey = "BroccoliPatchReleasePageURL"
+private let kBroccoliPatchSourceConfigFileName = "patch-source.json"
 
-private let kDefaultBroccoliPatchDictionaryBaseURL =
-    "https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/smart-mixed-user-phrases/SharedDictionary"
 private let kDefaultBroccoliPatchReleaseAPIURL =
     "https://api.github.com/repos/CloudHua183/Broccoli-SmartInput/releases/latest"
 private let kDefaultBroccoliPatchReleasePageURL =
@@ -154,6 +154,7 @@ struct VersionUpdateApi {
 
 enum BroccoliPatchError: Error, LocalizedError {
     case badURL(String)
+    case missingPatchSourceConfig(String)
     case network(String)
     case invalidDictionary(String)
     case fileWrite(String)
@@ -164,6 +165,19 @@ enum BroccoliPatchError: Error, LocalizedError {
         switch self {
         case .badURL(let value):
             return "Invalid URL: \(value)"
+        case .missingPatchSourceConfig(let path):
+            return """
+            Patch dictionary source is not configured.
+
+            Create this file:
+            \(path)
+
+            Example:
+            {
+              "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_1",
+              "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_2"
+            }
+            """
         case .network(let message):
             return message
         case .invalidDictionary(let message):
@@ -190,12 +204,12 @@ struct BroccoliPatchRelease {
     let assetName: String?
 }
 
-enum BroccoliPatchManager {
-    private static var dictionaryBaseURLString: String {
-        UserDefaults.standard.string(forKey: kBroccoliPatchDictionaryBaseURLKey)
-            ?? kDefaultBroccoliPatchDictionaryBaseURL
-    }
+struct BroccoliPatchDictionarySource {
+    let smartMixedASCIIWordsURL: String
+    let userPhrasesURL: String
+}
 
+enum BroccoliPatchManager {
     private static var releaseAPIURLString: String {
         UserDefaults.standard.string(forKey: kBroccoliPatchReleaseAPIURLKey)
             ?? kDefaultBroccoliPatchReleaseAPIURL
@@ -208,14 +222,18 @@ enum BroccoliPatchManager {
         )!
     }
 
+    static var patchSourceConfigPath: String {
+        (LanguageModelManager.dataFolderPath as NSString).appendingPathComponent(kBroccoliPatchSourceConfigFileName)
+    }
+
     static func syncDictionaries() throws -> BroccoliPatchSyncReport {
         guard LanguageModelManager.checkIfUserLanguageModelFilesExist() else {
             throw BroccoliPatchError.fileWrite("Cannot create or access \(LanguageModelManager.dataFolderPath).")
         }
 
-        let base = dictionaryBaseURLString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let smartWords = try downloadText(from: "\(base)/smart-mixed-ascii-words.txt")
-        let userPhrases = try downloadText(from: "\(base)/data.txt")
+        let source = try dictionarySource()
+        let smartWords = try downloadText(from: source.smartMixedASCIIWordsURL)
+        let userPhrases = try downloadText(from: source.userPhrasesURL)
         try validateSmartMixedWords(smartWords)
         try validateUserPhrases(userPhrases)
 
@@ -224,6 +242,46 @@ enum BroccoliPatchManager {
         try writeSyncedFile(userPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
         LanguageModelManager.loadUserPhrases(enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
         return report
+    }
+
+    private static func dictionarySource() throws -> BroccoliPatchDictionarySource {
+        if
+            let smartWordsURL = UserDefaults.standard.string(forKey: kBroccoliPatchSmartMixedASCIIWordsURLKey),
+            let userPhrasesURL = UserDefaults.standard.string(forKey: kBroccoliPatchUserPhrasesURLKey),
+            !smartWordsURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            !userPhrasesURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return BroccoliPatchDictionarySource(
+                smartMixedASCIIWordsURL: smartWordsURL,
+                userPhrasesURL: userPhrasesURL)
+        }
+
+        let configPath = patchSourceConfigPath
+        guard FileManager.default.fileExists(atPath: configPath) else {
+            throw BroccoliPatchError.missingPatchSourceConfig(configPath)
+        }
+
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw BroccoliPatchError.invalidDictionary("Invalid patch-source.json: expected a JSON object.")
+            }
+            guard
+                let smartWordsURL = json["smartMixedASCIIWordsURL"] as? String,
+                let userPhrasesURL = json["userPhrasesURL"] as? String,
+                !smartWordsURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                !userPhrasesURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else {
+                throw BroccoliPatchError.invalidDictionary("Invalid patch-source.json: smartMixedASCIIWordsURL and userPhrasesURL are required.")
+            }
+            return BroccoliPatchDictionarySource(
+                smartMixedASCIIWordsURL: smartWordsURL,
+                userPhrasesURL: userPhrasesURL)
+        } catch let error as BroccoliPatchError {
+            throw error
+        } catch {
+            throw BroccoliPatchError.invalidDictionary("Cannot read patch-source.json: \(error.localizedDescription)")
+        }
     }
 
     static func latestRelease() throws -> BroccoliPatchRelease {
@@ -545,7 +603,7 @@ extension AppDelegate {
                 case .success(let report):
                     let fileList = report.updatedFiles.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", ")
                     NonModalAlertWindowController.shared.show(
-                        title: "GitHub 詞庫同步完成",
+                        title: "雲端詞庫同步完成",
                         content: "已更新：\(fileList)",
                         confirmButtonTitle: NSLocalizedString("OK", comment: ""),
                         cancelButtonTitle: nil,
@@ -553,7 +611,7 @@ extension AppDelegate {
                         delegate: nil)
                 case .failure(let error):
                     NonModalAlertWindowController.shared.show(
-                        title: "GitHub 詞庫同步失敗",
+                        title: "雲端詞庫同步失敗",
                         content: error.localizedDescription,
                         confirmButtonTitle: NSLocalizedString("OK", comment: ""),
                         cancelButtonTitle: nil,

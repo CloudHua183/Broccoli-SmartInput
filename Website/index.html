@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>花椰輸入法 Broccoli SmartInput</title>
+  <meta name="description" content="花椰輸入法是以 McBopomofo 小麥注音為基底的 macOS 繁體注音智慧中英混合輸入法實驗版。">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="花椰輸入法首頁">
+      <img src="./assets/broccoli-icon.png" alt="" class="brand-icon">
+      <span>花椰輸入法</span>
+    </a>
+    <nav class="topnav" aria-label="主要導覽">
+      <a href="#features">功能</a>
+      <a href="#shortcuts">熱鍵</a>
+      <a href="#install">安裝</a>
+      <a href="#source">來源</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <p class="eyebrow">macOS 繁體注音智慧混輸實驗版</p>
+        <h1 id="hero-title">花椰輸入法</h1>
+        <p class="hero-copy">
+          以 McBopomofo 小麥注音為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
+        </p>
+        <div class="hero-actions" aria-label="主要動作">
+          <a class="button primary" href="./downloads/HuayeInput-r2264-personal-20260710.dmg" download>下載 DMG</a>
+          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
+        </div>
+        <dl class="version-strip" aria-label="目前版本資訊">
+          <div>
+            <dt>版本</dt>
+            <dd>3.0 r2264</dd>
+          </div>
+          <div>
+            <dt>分支</dt>
+            <dd>smart-mixed-user-phrases</dd>
+          </div>
+          <div>
+            <dt>安裝包</dt>
+            <dd>2026-07-10</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="hero-demo" aria-label="中英混合輸入示意">
+        <div class="demo-window">
+          <div class="traffic" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="input-line">
+            <span>今天</span><span class="ascii">Meeting</span><span>改到下午</span><span class="caret"></span>
+          </div>
+          <div class="reading-line">ㄐㄧㄣ ㄊㄧㄢ Meeting ㄍㄞˇ ㄉㄠˋ ㄒㄧㄚˋ ㄨˇ</div>
+          <div class="candidate-row">
+            <span class="candidate active">今天</span>
+            <span class="candidate ascii">Meeting</span>
+            <span class="candidate">改到</span>
+            <span class="candidate">下午</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="quick-facts" aria-label="快速重點">
+      <div>
+        <strong>不用一直切換</strong>
+        <span>中文輸入過程可直接保留英文片段。</span>
+      </div>
+      <div>
+        <strong>詞庫可擴充</strong>
+        <span>熱鍵加入游標前的中文詞或英文字。</span>
+      </div>
+      <div>
+        <strong>多機同步</strong>
+        <span>透過本機設定讀取私人 Google Drive 詞庫。</span>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Feature Map</p>
+        <h2>目前可用功能</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>注音 / 英文混合模式</h3>
+          <p>輸入中文時可直接插入英文片段，例如「今天Meeting改到下午」。支援大寫起始英文、常用小寫詞、全大寫縮寫與尾端數字。</p>
+        </article>
+        <article class="feature">
+          <span class="status partial">部分完成</span>
+          <h3>不按 Shift 的小寫英文</h3>
+          <p>像 <code>call</code>、<code>meeting</code>、<code>chrome</code>、<code>testing</code> 這類合理英文 run 會延遲判斷並回溯成英文。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>快捷加入個人詞庫</h3>
+          <p>游標在詞尾時，用 <kbd>Control</kbd> + <kbd>Shift</kbd> + <kbd>數字</kbd> 將前 N 個字元加入使用者詞庫；同位置重複可刪除。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>雲端詞庫同步</h3>
+          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結。</p>
+        </article>
+        <article class="feature">
+          <span class="status base">沿用基底</span>
+          <h3>候選字與標點輸入</h3>
+          <p>保留 McBopomofo 原本的候選字、注音引擎、使用者詞庫、服務選單與標點相關能力。</p>
+        </article>
+        <article class="feature">
+          <span class="status planned">規劃中</span>
+          <h3>自動完成與框選查詢</h3>
+          <p>下一階段目標包含下一詞預測、快捷文字本，以及框選文字後查翻譯、查單字與發音。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="shortcuts" class="section split">
+      <div class="section-heading">
+        <p class="eyebrow">How To Use</p>
+        <h2>使用方法與熱鍵</h2>
+        <p>下面是目前版本最重要的操作。熱鍵以 macOS 實際偵測到的 modifier flags 為準，尚未嚴格限定左側 Control / Shift。</p>
+      </div>
+      <div class="shortcut-list">
+        <div class="shortcut">
+          <div class="keys"><kbd>Control</kbd><kbd>Shift</kbd><kbd>5</kbd></div>
+          <div>
+            <h3>加入游標前 5 個字元</h3>
+            <p>游標在 <code>Cloud</code> 的 <code>d</code> 後方時按下，會將 <code>Cloud</code> 加入使用者詞庫。</p>
+          </div>
+        </div>
+        <div class="shortcut">
+          <div class="keys"><kbd>Control</kbd><kbd>Shift</kbd><kbd>2</kbd></div>
+          <div>
+            <h3>加入游標前 2 個中文字</h3>
+            <p>游標在「字尾」後方時按下，會將「字尾」加入使用者詞庫。</p>
+          </div>
+        </div>
+        <div class="shortcut">
+          <div class="keys"><kbd>同位置</kbd><kbd>同熱鍵</kbd></div>
+          <div>
+            <h3>刪除剛加入的詞</h3>
+            <p>同一位置再次按相同熱鍵，會從使用者詞庫刪除該詞，並顯示提示視窗。</p>
+          </div>
+        </div>
+        <div class="shortcut">
+          <div class="keys"><kbd>輸入法選單</kbd></div>
+          <div>
+            <h3>同步雲端詞庫</h3>
+            <p>從 Google Drive 下載私人白名單與 <code>data.txt</code>，同步前會備份本機舊檔。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" class="section install-band">
+      <div>
+        <p class="eyebrow">Install</p>
+        <h2>下載與安裝</h2>
+        <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="./downloads/HuayeInput-r2264-personal-20260710.dmg" download>下載 HuayeInput r2264 DMG</a>
+          <a class="button secondary" href="./downloads/HuayeInput-r2264-personal.pkg" download>下載 PKG</a>
+        </div>
+      </div>
+      <ol class="install-steps">
+        <li>打開 DMG，執行 <code>HuayeInput-r2264-personal.pkg</code>。</li>
+        <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
+        <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
+        <li>若行為仍像舊版，登出再登入或重開機一次。</li>
+        <li>如果打開 DMG 後執行 PKG 碰到困難，請直接使用下方終端機指令，複製貼上即可完成安裝。</li>
+      </ol>
+    </section>
+
+    <section class="section terminal-section">
+      <div class="section-heading">
+        <p class="eyebrow">Advanced</p>
+        <h2>終端機指令</h2>
+      </div>
+      <div class="terminal-panel">
+        <div class="terminal-panel-bar">
+          <p>完整安裝指令</p>
+          <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
+        </div>
+        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/HuayeInput-r2264-personal/HuayeInput-r2264-personal.pkg
+sudo installer -pkg /Volumes/HuayeInput-r2264-personal/HuayeInput-r2264-personal.pkg -target /</code></pre>
+      </div>
+      <div class="terminal-panel">
+        <div class="terminal-panel-bar">
+          <p>同步雲端詞庫指令</p>
+          <button class="copy-button" type="button" data-copy-target="terminal-sync-code">複製</button>
+        </div>
+        <p class="terminal-note">若你已經完成安裝，也可用同一個輸入法選單同步雲端詞庫：</p>
+        <pre><code id="terminal-sync-code">/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
+/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch check-release</code></pre>
+      </div>
+    </section>
+
+    <section id="source" class="section source-section">
+      <div class="source-copy">
+        <p class="eyebrow">Source</p>
+        <h2>來源與開源基底</h2>
+        <p>花椰輸入法是 McBopomofo 小麥注音的改造實驗版，保留原本注音引擎與 macOS Input Method Kit 架構，再加入智慧混輸與私人詞庫同步。</p>
+      </div>
+      <div class="source-links">
+        <a href="https://github.com/openvanilla/McBopomofo">McBopomofo 原始專案</a>
+        <a href="https://mcbopomofo.openvanilla.org/">McBopomofo 官方網站</a>
+        <a href="https://github.com/CloudHua183/Broccoli-SmartInput">Broccoli SmartInput Repo</a>
+      </div>
+    </section>
+
+    <section class="section roadmap">
+      <div class="section-heading">
+        <p class="eyebrow">Roadmap</p>
+        <h2>下一步</h2>
+      </div>
+      <ul class="roadmap-list">
+        <li><span>候選列中加入「作為英文 / 作為注音」切換。</span></li>
+        <li><span>完整小寫英文 scanner 與 correction memory。</span></li>
+        <li><span>使用者詞庫管理 UI、匯入匯出與衝突提示。</span></li>
+        <li><span>自動完成、快捷文字本與框選查詢 companion app。</span></li>
+        <li><span>Apple Developer 簽章與 notarization。</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Broccoli SmartInput / 花椰輸入法</span>
+    <span>Experimental build for macOS Traditional Chinese Bopomofo users.</span>
+  </footer>
+  <script>
+    document.querySelectorAll('.copy-button').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const targetId = button.getAttribute('data-copy-target');
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) {
+          return;
+        }
+        const text = target.textContent.trim();
+        let copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          }
+        } catch (error) {
+          copied = false;
+        }
+        if (!copied) {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-9999px';
+          textarea.style.top = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          copied = document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+        if (copied) {
+          const original = button.textContent;
+          button.textContent = '已複製';
+          setTimeout(() => {
+            button.textContent = original;
+          }, 1600);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

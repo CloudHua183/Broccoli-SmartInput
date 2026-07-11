@@ -56,19 +56,51 @@
 - 框選查詢 companion app。
 - Apple Developer 簽章與 notarization。
 
-## GitHub Patch / 多台電腦同步
+## Drive Patch / 多台電腦同步
 
-公開共享詞庫目錄：
+公開 repo 不存放真正的個人詞庫。GitHub 只保留範例檔：
 
-- `SharedDictionary/smart-mixed-ascii-words.txt`
-  - 多台電腦共用的指定英文 / 產品名白名單。
-- `SharedDictionary/data.txt`
-  - 多台電腦共用的使用者詞庫。
+- `SharedDictionary/smart-mixed-ascii-words.example.txt`
+  - 指定英文 / 產品名白名單範例。
+- `SharedDictionary/data.example.txt`
+  - 使用者詞庫範例。
+- `SharedDictionary/patch-source.example.json`
+  - Google Drive 下載 URL 設定範例。
+
+真正的私人檔案放在 Google Drive：
+
+```text
+smart-mixed-ascii-words.txt
+data.txt
+```
+
+目前 Drive 位置：
+
+```text
+Folder: https://drive.google.com/drive/folders/1nSXOhRm3tdukXhgp5MRMPZGL-oYcRdwv
+smart-mixed-ascii-words.txt: 1PaH_srJBr0tcjooqaw1QeMCm4DnOJlQw
+data.txt: 1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
+```
+
+每台電腦需建立本機設定檔：
+
+```text
+~/Library/Application Support/McBopomofo/patch-source.json
+```
+
+格式：
+
+```json
+{
+  "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=1PaH_srJBr0tcjooqaw1QeMCm4DnOJlQw",
+  "userPhrasesURL": "https://drive.google.com/uc?export=download&id=1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d"
+}
+```
 
 安裝後，每台電腦可用輸入法選單執行：
 
 ```text
-同步 GitHub 詞庫
+同步雲端詞庫
 ```
 
 也可用 CLI：
@@ -77,7 +109,7 @@
 /Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
 ```
 
-同步會從 GitHub public repo 下載 `SharedDictionary/`，驗證格式、備份本機舊檔，然後覆蓋：
+同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式、備份本機舊檔，然後覆蓋：
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt
@@ -99,7 +131,7 @@ GitHub Release patch 功能：
 下載 GitHub 最新 Release…
 ```
 
-注意：public repo 可讓每台電腦讀取最新詞庫；要把本機新增詞回寫到 GitHub，仍需用一般 git commit / push 流程，避免在輸入法內保存 GitHub token。
+注意：Drive 若設定成「知道連結的人可以存取」，連結外流時仍可能被讀取或編輯；但至少不會被公開 GitHub repo 直接列出。
 
 ## 常用本機指令
 

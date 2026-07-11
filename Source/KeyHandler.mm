@@ -69,6 +69,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     std::string _smartMixedASCIISequence;
     std::optional<char> _smartMixedASCIIPendingStartChar;
     std::string _smartMixedPendingKeyRun;
+    NSString *_smartMixedArrowShortcutPendingInput;
 }
 
 @synthesize delegate = _delegate;
@@ -144,6 +145,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _smartMixedASCIISequence.clear();
         _smartMixedASCIIPendingStartChar = std::nullopt;
         _smartMixedPendingKeyRun.clear();
+        _smartMixedArrowShortcutPendingInput = nil;
     }
     return self;
 }
@@ -307,6 +309,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIISequence.clear();
     _smartMixedASCIIPendingStartChar = std::nullopt;
     _smartMixedPendingKeyRun.clear();
+    _smartMixedArrowShortcutPendingInput = nil;
 }
 
 - (void)_resetSmartMixedASCIIState
@@ -315,6 +318,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIISequence.clear();
     _smartMixedASCIIPendingStartChar = std::nullopt;
     _smartMixedPendingKeyRun.clear();
+    _smartMixedArrowShortcutPendingInput = nil;
 }
 
 - (std::string)_lowercaseASCIIString:(const std::string&)value
@@ -524,6 +528,62 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return YES;
 }
 
+- (void)_resetSmartMixedArrowShortcutState
+{
+    _smartMixedArrowShortcutPendingInput = nil;
+}
+
+- (BOOL)_handleSmartMixedArrowShortcutWithState:(InputState *)state
+                                          input:(KeyHandlerInput *)input
+                                  stateCallback:(void (^)(InputState *))stateCallback
+                                  errorCallback:(void (^)(void))errorCallback
+{
+    NSString *inputText = input.inputText;
+    if (inputText.length != 1) {
+        if (_smartMixedArrowShortcutPendingInput != nil) {
+            NSString *pending = _smartMixedArrowShortcutPendingInput;
+            [self _resetSmartMixedArrowShortcutState];
+            stateCallback([[InputStateCommitting alloc] initWithPoppedText:pending]);
+            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
+            return [self handleInput:input state:[[InputStateEmptyIgnoringPreviousState alloc] init] stateCallback:stateCallback errorCallback:errorCallback];
+        }
+        return NO;
+    }
+
+    BOOL isDash = [inputText isEqualToString:@"-"];
+    BOOL isRightArrowText = [inputText isEqualToString:@">"];
+    BOOL isEr = [inputText isEqualToString:@"ㄦ"];
+    BOOL isFullWidthPeriod = [inputText isEqualToString:@"。"];
+
+    if (_smartMixedArrowShortcutPendingInput != nil) {
+        NSString *pending = _smartMixedArrowShortcutPendingInput;
+        if ([pending isEqualToString:@"-"] && isRightArrowText) {
+            [self _resetSmartMixedArrowShortcutState];
+            stateCallback([[InputStateCommitting alloc] initWithPoppedText:@"→"]);
+            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
+            return YES;
+        }
+        if ([pending isEqualToString:@"ㄦ"] && isFullWidthPeriod) {
+            [self _resetSmartMixedArrowShortcutState];
+            stateCallback([[InputStateCommitting alloc] initWithPoppedText:@"→"]);
+            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
+            return YES;
+        }
+
+        [self _resetSmartMixedArrowShortcutState];
+        stateCallback([[InputStateCommitting alloc] initWithPoppedText:pending]);
+        stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
+        return [self handleInput:input state:[[InputStateEmptyIgnoringPreviousState alloc] init] stateCallback:stateCallback errorCallback:errorCallback];
+    }
+
+    if (isDash || isEr) {
+        _smartMixedArrowShortcutPendingInput = inputText;
+        return YES;
+    }
+
+    return NO;
+}
+
 - (BOOL)handleInput:(KeyHandlerInput *)input state:(InputState *)inState stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback
 {
     InputState *state = inState;
@@ -642,6 +702,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         [state isKindOfClass:[InputStateShowingCharInfo class]] ||
         [state isKindOfClass:[InputStateCustomMenu class]]) {
         return [self _handleCandidateState:state input:input stateCallback:stateCallback errorCallback:errorCallback];
+    }
+
+    if ([self _handleSmartMixedArrowShortcutWithState:state input:input stateCallback:stateCallback errorCallback:errorCallback]) {
+        return YES;
     }
 
     // MARK: Handle Marking

@@ -18,3 +18,7 @@ __pycache__
 codecov_comment.md
 DerivedData
 dist/
+SharedDictionary/*.txt
+!SharedDictionary/*.example.txt
+SharedDictionary/patch-source.json
+PrivateDictionary/

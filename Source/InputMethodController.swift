@@ -162,7 +162,7 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("Reload User Phrases", comment: ""),
             action: #selector(reloadUserPhrases(_:)), keyEquivalent: "")
         menu.addItem(
-            withTitle: "同步 GitHub 詞庫",
+            withTitle: "同步雲端詞庫",
             action: #selector(syncBroccoliPatchDictionaries(_:)), keyEquivalent: "")
 
         if !McBopomofoInputMethodController.latestUserFileIssues.isEmpty {

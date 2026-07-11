@@ -82,7 +82,7 @@ private func patch() -> Int32 {
         switch CommandLine.arguments[2] {
         case "sync":
             let report = try BroccoliPatchManager.syncDictionaries()
-            print("Synced GitHub dictionaries:")
+            print("Synced patch dictionaries:")
             for file in report.updatedFiles {
                 print("updated \(file)")
             }
