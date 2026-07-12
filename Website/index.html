@@ -82,6 +82,30 @@
       </div>
     </section>
 
+    <section class="section" aria-labelledby="dictionary-title">
+      <div class="section-heading">
+        <p class="eyebrow">Dictionary Notes</p>
+        <h2 id="dictionary-title">詞庫說明</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="status done">使用者詞庫</span>
+          <h3><code>data.txt</code></h3>
+          <p>放你自己手動新增的詞、片語與專有名詞，格式是 <code>phrase reading</code>。它會影響候選詞，也會參與英文 prefix 判斷。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">英文白名單</span>
+          <h3><code>smart-mixed-ascii-words.txt</code></h3>
+          <p>放產品名、縮寫與常用英文 run，一行一個 ASCII 詞，不需要讀音。它主要用來讓智慧混輸更穩地認出英文片段。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">同步方式</span>
+          <h3><code>patch sync</code></h3>
+          <p>同步會同時更新這兩個檔案，來源由本機 <code>patch-source.json</code> 指定的 Google Drive 連結決定。同步前會先驗證格式，再備份舊檔。</p>
+        </article>
+      </div>
+    </section>
+
     <section id="features" class="section">
       <div class="section-heading">
         <p class="eyebrow">Feature Map</p>
@@ -153,7 +177,7 @@
           <div class="keys"><kbd>輸入法選單</kbd></div>
           <div>
             <h3>同步雲端詞庫</h3>
-            <p>從 Google Drive 下載私人白名單與 <code>data.txt</code>，同步前會備份本機舊檔。</p>
+            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式並備份本機舊檔。</p>
           </div>
         </div>
       </div>
