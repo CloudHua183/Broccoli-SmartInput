@@ -43,3 +43,51 @@ final class VersionUpdateApiTests {
         }
     }
 }
+
+@Suite("Broccoli Patch Sync Tests")
+final class BroccoliPatchSyncTests {
+    @Test("Initial sync keeps both local and remote additions")
+    func testInitialSyncUnionKeepsBothSides() {
+        let local = "alpha a\nlocal c\n"
+        let remote = "beta b\nremote d\n"
+        let merged = BroccoliPatchDictionaryMerger.merge(
+            kind: .userPhrases,
+            base: nil,
+            local: local,
+            remote: remote
+        )
+
+        #expect(merged == "beta b\nremote d\nalpha a\nlocal c\n")
+    }
+
+    @Test("Three-way merge keeps concurrent additions and local deletions")
+    func testThreeWayMergeKeepsConcurrentAdditionsAndLocalDeletes() {
+        let base = "alpha a\nbeta b\n"
+        let local = "alpha a\nlocal c\n"
+        let remote = "alpha a\nbeta b\nremote d\n"
+        let merged = BroccoliPatchDictionaryMerger.merge(
+            kind: .userPhrases,
+            base: base,
+            local: local,
+            remote: remote
+        )
+
+        #expect(merged == "alpha a\nremote d\nlocal c\n")
+        #expect(!merged.contains("beta b"))
+    }
+
+    @Test("Smart mixed words merge is case-insensitive and additive")
+    func testSmartMixedWordsMergeAddsUniqueWords() {
+        let base = "API\nmacOS\n"
+        let local = "API\nSwift\n"
+        let remote = "api\nChrome\n"
+        let merged = BroccoliPatchDictionaryMerger.merge(
+            kind: .smartMixedASCIIWords,
+            base: base,
+            local: local,
+            remote: remote
+        )
+
+        #expect(merged == "api\nChrome\nSwift\n")
+    }
+}

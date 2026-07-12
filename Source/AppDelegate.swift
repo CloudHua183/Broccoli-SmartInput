@@ -192,6 +192,203 @@ enum BroccoliPatchError: Error, LocalizedError {
     }
 }
 
+enum BroccoliPatchDictionaryKind {
+    case smartMixedASCIIWords
+    case userPhrases
+
+    var cacheFileName: String {
+        switch self {
+        case .smartMixedASCIIWords:
+            return ".broccoli-patch-base-smart-mixed-ascii-words.txt"
+        case .userPhrases:
+            return ".broccoli-patch-base-data.txt"
+        }
+    }
+}
+
+enum BroccoliPatchDictionaryLine {
+    case blank
+    case comment(String)
+    case entry(key: String, canonical: String)
+}
+
+struct BroccoliPatchDictionarySnapshot {
+    let lines: [BroccoliPatchDictionaryLine]
+    let entryKeys: Set<String>
+
+    static func parse(_ text: String, kind: BroccoliPatchDictionaryKind) -> BroccoliPatchDictionarySnapshot {
+        var lines: [BroccoliPatchDictionaryLine] = []
+        var entryKeys = Set<String>()
+
+        for rawLine in text.components(separatedBy: .newlines) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            if trimmed.hasPrefix("#") {
+                lines.append(.comment(trimmed))
+                continue
+            }
+
+            switch kind {
+            case .smartMixedASCIIWords:
+                let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+                if trimmed.rangeOfCharacter(from: allowed.inverted) != nil {
+                    continue
+                }
+                let key = trimmed.lowercased()
+                entryKeys.insert(key)
+                lines.append(.entry(key: key, canonical: trimmed))
+            case .userPhrases:
+                let components = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                guard components.count >= 2 else {
+                    continue
+                }
+                let canonical = components.joined(separator: " ")
+                let key = canonical.lowercased()
+                entryKeys.insert(key)
+                lines.append(.entry(key: key, canonical: canonical))
+            }
+        }
+
+        return BroccoliPatchDictionarySnapshot(lines: lines, entryKeys: entryKeys)
+    }
+}
+
+enum BroccoliPatchDictionaryMerger {
+    static func cachePath(for kind: BroccoliPatchDictionaryKind, under folderPath: String) -> String {
+        (folderPath as NSString).appendingPathComponent(kind.cacheFileName)
+    }
+
+    static func merge(
+        kind: BroccoliPatchDictionaryKind,
+        base: String?,
+        local: String,
+        remote: String
+    ) -> String {
+        if let base {
+            return mergeThreeWay(
+                kind: kind,
+                base: base,
+                local: local,
+                remote: remote
+            )
+        }
+        return mergeByUnion(
+            kind: kind,
+            left: remote,
+            right: local
+        )
+    }
+
+    static func loadCachedBaseSnapshot(kind: BroccoliPatchDictionaryKind) -> String? {
+        let path = cachePath(for: kind, under: LanguageModelManager.dataFolderPath)
+        guard FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return try? String(contentsOfFile: path, encoding: .utf8)
+    }
+
+    static func storeCachedBaseSnapshot(_ text: String, kind: BroccoliPatchDictionaryKind) throws {
+        let path = cachePath(for: kind, under: LanguageModelManager.dataFolderPath)
+        let fileURL = URL(fileURLWithPath: path)
+        let folderURL = fileURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+        try text.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    private static func mergeByUnion(
+        kind: BroccoliPatchDictionaryKind,
+        left: String,
+        right: String
+    ) -> String {
+        let leftSnapshot = BroccoliPatchDictionarySnapshot.parse(left, kind: kind)
+        let rightSnapshot = BroccoliPatchDictionarySnapshot.parse(right, kind: kind)
+        var mergedKeys = leftSnapshot.entryKeys
+        mergedKeys.formUnion(rightSnapshot.entryKeys)
+        return renderMergedText(
+            left: leftSnapshot,
+            right: rightSnapshot,
+            mergedKeys: mergedKeys,
+            rightAdds: rightSnapshot.entryKeys.subtracting(leftSnapshot.entryKeys)
+        )
+    }
+
+    private static func mergeThreeWay(
+        kind: BroccoliPatchDictionaryKind,
+        base: String,
+        local: String,
+        remote: String
+    ) -> String {
+        let baseSnapshot = BroccoliPatchDictionarySnapshot.parse(base, kind: kind)
+        let localSnapshot = BroccoliPatchDictionarySnapshot.parse(local, kind: kind)
+        let remoteSnapshot = BroccoliPatchDictionarySnapshot.parse(remote, kind: kind)
+
+        var mergedKeys = remoteSnapshot.entryKeys
+        let baseRemovedByRemote = baseSnapshot.entryKeys.subtracting(remoteSnapshot.entryKeys)
+        let baseRemovedByLocal = baseSnapshot.entryKeys.subtracting(localSnapshot.entryKeys)
+        mergedKeys.subtract(baseRemovedByRemote)
+        mergedKeys.subtract(baseRemovedByLocal)
+        mergedKeys.formUnion(localSnapshot.entryKeys.subtracting(baseSnapshot.entryKeys))
+
+        return renderMergedText(
+            left: remoteSnapshot,
+            right: localSnapshot,
+            mergedKeys: mergedKeys,
+            rightAdds: localSnapshot.entryKeys.subtracting(baseSnapshot.entryKeys)
+        )
+    }
+
+    private static func renderMergedText(
+        left: BroccoliPatchDictionarySnapshot,
+        right: BroccoliPatchDictionarySnapshot,
+        mergedKeys: Set<String>,
+        rightAdds: Set<String>
+    ) -> String {
+        var outputLines: [String] = []
+        var seenKeys = Set<String>()
+        var seenNonEntryLines = Set<String>()
+
+        func appendLine(_ line: BroccoliPatchDictionaryLine) {
+            switch line {
+            case .blank:
+                return
+            case .comment(let comment):
+                if seenNonEntryLines.insert(comment).inserted {
+                    outputLines.append(comment)
+                }
+            case .entry(let key, let canonical):
+                guard mergedKeys.contains(key), !seenKeys.contains(key) else {
+                    return
+                }
+                seenKeys.insert(key)
+                outputLines.append(canonical)
+            }
+        }
+
+        for line in left.lines {
+            appendLine(line)
+        }
+
+        for line in right.lines {
+            switch line {
+            case .entry(let key, let canonical):
+                guard rightAdds.contains(key), !seenKeys.contains(key) else {
+                    continue
+                }
+                seenKeys.insert(key)
+                outputLines.append(canonical)
+            default:
+                appendLine(line)
+            }
+        }
+
+        if outputLines.isEmpty {
+            return ""
+        }
+
+        return outputLines.joined(separator: "\n") + "\n"
+    }
+}
+
 struct BroccoliPatchSyncReport {
     var updatedFiles: [String] = []
     var backupFiles: [String] = []
@@ -237,9 +434,28 @@ enum BroccoliPatchManager {
         try validateSmartMixedWords(smartWords)
         try validateUserPhrases(userPhrases)
 
+        let localSmartWords = try String(contentsOfFile: LanguageModelManager.smartMixedASCIIWordsDataPath, encoding: .utf8)
+        let localUserPhrases = try String(contentsOfFile: LanguageModelManager.userPhrasesDataPathMcBopomofo, encoding: .utf8)
+        let smartBase = BroccoliPatchDictionaryMerger.loadCachedBaseSnapshot(kind: .smartMixedASCIIWords)
+        let userBase = BroccoliPatchDictionaryMerger.loadCachedBaseSnapshot(kind: .userPhrases)
+        let mergedSmartWords = BroccoliPatchDictionaryMerger.merge(
+            kind: .smartMixedASCIIWords,
+            base: smartBase,
+            local: localSmartWords,
+            remote: smartWords
+        )
+        let mergedUserPhrases = BroccoliPatchDictionaryMerger.merge(
+            kind: .userPhrases,
+            base: userBase,
+            local: localUserPhrases,
+            remote: userPhrases
+        )
+
         var report = BroccoliPatchSyncReport()
-        try writeSyncedFile(smartWords, to: LanguageModelManager.smartMixedASCIIWordsDataPath, report: &report)
-        try writeSyncedFile(userPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
+        try writeSyncedFile(mergedSmartWords, to: LanguageModelManager.smartMixedASCIIWordsDataPath, report: &report)
+        try writeSyncedFile(mergedUserPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
+        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(smartWords, kind: .smartMixedASCIIWords)
+        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(userPhrases, kind: .userPhrases)
         LanguageModelManager.loadUserPhrases(enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
         return report
     }

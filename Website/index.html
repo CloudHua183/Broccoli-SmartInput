@@ -10,7 +10,14 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#top" aria-label="花椰輸入法首頁">
-      <img src="./assets/broccoli-icon.png" alt="" class="brand-icon">
+      <svg class="brand-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="22" cy="22" r="10" fill="rgb(71,155,86)"></circle>
+        <circle cx="34" cy="17" r="11" fill="rgb(60,136,76)"></circle>
+        <circle cx="45" cy="25" r="10" fill="rgb(83,176,96)"></circle>
+        <circle cx="29" cy="31" r="12" fill="rgb(96,184,108)"></circle>
+        <path d="M28 30C27 38 26 44 24 52H40C38 44 37 38 36 30Z" fill="rgb(123,98,62)"></path>
+        <path d="M24 52H40" stroke="rgb(78,55,32)" stroke-width="3" stroke-linecap="round"></path>
+      </svg>
       <span>花椰輸入法</span>
     </a>
     <nav class="topnav" aria-label="主要導覽">
@@ -31,13 +38,13 @@
           以 McBopomofo 小麥注音為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="./downloads/HuayeInput-v1.0.0-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/HuayeInput-v1.0.1-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.0.0</dd>
+            <dd>v1.0.1</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -189,12 +196,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="./downloads/HuayeInput-v1.0.0-personal.dmg" download>下載 HuayeInput v1.0.0 DMG</a>
-          <a class="button secondary" href="./downloads/HuayeInput-v1.0.0-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/HuayeInput-v1.0.1-personal.dmg" download>下載 HuayeInput v1.0.1 DMG</a>
+          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/HuayeInput-v1.0.1-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>HuayeInput-v1.0.0-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>HuayeInput-v1.0.1-personal.pkg</code>。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
         <li>若行為仍像舊版，登出再登入或重開機一次。</li>
@@ -212,8 +219,8 @@
           <p>完整安裝指令</p>
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
-        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/HuayeInput-v1.0.0-personal/HuayeInput-v1.0.0-personal.pkg
-sudo installer -pkg /Volumes/HuayeInput-v1.0.0-personal/HuayeInput-v1.0.0-personal.pkg -target /</code></pre>
+        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/HuayeInput-v1.0.1-personal/HuayeInput-v1.0.1-personal.pkg
+sudo installer -pkg /Volumes/HuayeInput-v1.0.1-personal/HuayeInput-v1.0.1-personal.pkg -target /</code></pre>
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">

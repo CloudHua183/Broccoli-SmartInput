@@ -101,7 +101,9 @@ pre {
   inset: auto 2vw -120px auto;
   width: min(460px, 45vw);
   aspect-ratio: 1;
-  background: url("./assets/broccoli-icon.png") center / contain no-repeat;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><circle cx='145' cy='125' r='72' fill='rgb(71,155,86)'/><circle cx='215' cy='98' r='82' fill='rgb(60,136,76)'/><circle cx='282' cy='145' r='70' fill='rgb(83,176,96)'/><circle cx='188' cy='178' r='92' fill='rgb(96,184,108)'/><path d='M182 174C176 238 170 287 156 344H246C234 287 230 237 224 174Z' fill='rgb(123,98,62)'/><path d='M154 344H246' stroke='rgb(78,55,32)' stroke-width='10' stroke-linecap='round'/></svg>")
+    center / contain no-repeat;
   opacity: 0.1;
   filter: saturate(0.9);
 }
