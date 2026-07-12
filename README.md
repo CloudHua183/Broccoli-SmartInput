@@ -110,18 +110,35 @@ data.txt: 1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
 同步雲端詞庫
 ```
 
+如果你只是剛剛手動改了本機詞庫檔，想讓輸入法立刻重新吃到內容，就用：
+
+```text
+重新載入使用者詞彙
+```
+
 也可用 CLI：
 
 ```bash
 /Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
 ```
 
-同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式，和本機詞庫合併；如果也設定了 Google Apps Script writeback URL，還會把合併後結果寫回雲端，再備份本機舊檔並覆蓋：
+同步雲端詞庫的實際流程是：
+
+1. 先從 `patch-source.json` 指定的 Google Drive 下載最新詞庫。
+2. 驗證格式，並和本機詞庫做增量合併。
+3. 如果也設定了 Google Apps Script writeback URL，就把合併後結果寫回雲端。
+4. 再備份本機舊檔並覆蓋：
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt
 ~/Library/Application Support/McBopomofo/smart-mixed-ascii-words.txt
 ```
+
+白話一點說：
+
+- `重新載入使用者詞彙` = 只重讀本機檔案，讓你剛編輯完的內容立刻生效，不碰雲端。
+- `同步雲端詞庫` = 先抓雲端、再合併本機、必要時回寫雲端，適合要把本機新增詞彙分享給其他電腦時使用。
+- 本地新增詞彙不會自動上傳；真正上傳雲端的時機是你手動執行 `同步雲端詞庫`，而且已設定 upload URL。
 
 GitHub Release patch 功能：
 

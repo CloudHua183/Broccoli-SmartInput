@@ -108,7 +108,17 @@
         <article class="feature">
           <span class="status done">同步方式</span>
           <h3><code>patch sync</code></h3>
-          <p>同步會先從本機 <code>patch-source.json</code> 指定的 Google Drive 下載最新詞庫，和本機變更合併；若也設定 Google Apps Script writeback URL，還會把合併結果寫回雲端。同步前會先驗證格式，再備份舊檔。</p>
+          <p>這個選項會先從雲端抓最新詞庫，和你本機新增的內容做合併；如果有設定 Google Apps Script writeback URL，合併結果還會再寫回雲端。換句話說，它不是單純覆蓋，而是把大家的新增詞慢慢合成同一份。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">本機重載</span>
+          <h3>重新載入使用者詞彙</h3>
+          <p>如果你只是剛手動改了本機的 <code>data.txt</code> 或白名單，按這個選項就好。它只會重新讀取本機檔案，讓修改立刻生效，不會下載雲端，也不會上傳。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">白話流程</span>
+          <h3>先本機，再同步</h3>
+          <p>你在 A 電腦新增 X，B 電腦新增 Y，C 電腦新增 Z，先各自留在本機；等三台都按一次 <code>同步雲端詞庫</code>，就會合成同一份 XYZ。要立刻吃到本機修改，才用 <code>重新載入使用者詞彙</code>。</p>
         </article>
       </div>
     </section>
