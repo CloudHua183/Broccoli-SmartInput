@@ -10,7 +10,7 @@ STAGING_DIR="$DIST_DIR/personal-installer-staging"
 SCRIPTS_DIR="$STAGING_DIR/scripts"
 APP_SOURCE="$DERIVED_DATA_PATH/Build/Products/Release/McBopomofo.app"
 VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
-PKG_PATH="$DIST_DIR/HuayeInput-v${VERSION}-personal.pkg"
+PKG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.pkg"
 
 /bin/mkdir -p "$DIST_DIR"
 /bin/rm -rf "$STAGING_DIR"

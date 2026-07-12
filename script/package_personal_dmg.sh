@@ -5,10 +5,10 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export COPYFILE_DISABLE=1
 DIST_DIR="$ROOT_DIR/dist"
 VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
-PKG_PATH="$DIST_DIR/HuayeInput-v${VERSION}-personal.pkg"
+PKG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.pkg"
 STAGING_DIR="$DIST_DIR/dmg-staging"
-DMG_PATH="$DIST_DIR/HuayeInput-v${VERSION}-personal.dmg"
-VOLUME_NAME="HuayeInput-v${VERSION}-personal"
+DMG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.dmg"
+VOLUME_NAME="Broccoli-SmartInput-v${VERSION}-personal"
 
 if [[ ! -f "$PKG_PATH" ]]; then
   echo "error: package not found: $PKG_PATH" >&2
