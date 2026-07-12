@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export COPYFILE_DISABLE=1
-DERIVED_DATA_PATH="$ROOT_DIR/DerivedData"
+DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/DerivedData}"
 PROJECT_PATH="$ROOT_DIR/McBopomofo.xcodeproj"
 DIST_DIR="$ROOT_DIR/dist"
 STAGING_DIR="$DIST_DIR/personal-installer-staging"

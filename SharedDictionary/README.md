@@ -9,7 +9,8 @@ GitHub repo. Store them in Google Drive and keep only example files here.
 
 - `smart-mixed-ascii-words.example.txt`: example English/product-name allowlist.
 - `data.example.txt`: example McBopomofo user phrase dictionary.
-- `patch-source.example.json`: local config template for Google Drive download URLs and optional writeback URLs.
+- `patch-source.example.json`: local config template for Google Drive download URLs and optional Apps Script writeback URLs.
+- `GoogleAppsScriptWebApp.gs`: Apps Script web app template that writes the two cloud dictionary files back into Drive.
 
 ## Private Files In Google Drive
 
@@ -25,7 +26,40 @@ needs OAuth instead of simple download URLs.
 
 If you want true multi-computer writeback, provide upload URLs as well. The app
 downloads the latest cloud copy, merges local changes, uploads the merged
-result, and then refreshes the local files.
+result, and then refreshes the local files. The recommended writeback endpoint
+is a Google Apps Script Web App, because one deployment can update both files
+by switching the `target` query parameter.
+
+## Google Apps Script Web App
+
+Create a script project, paste `GoogleAppsScriptWebApp.gs`, and set these
+Script Properties:
+
+- `SMART_MIXED_ASCII_WORDS_FILE_ID`
+- `USER_PHRASES_FILE_ID`
+
+Deploy the script as a Web App, then use the same deployment URL with:
+
+- `?target=smart` for `smart-mixed-ascii-words.txt`
+- `?target=user` for `data.txt`
+
+The script validates the uploaded text, takes a script lock while writing, and
+updates the matching Drive file in place.
+
+## v1.0.2 Deployment Notes
+
+The current deployed Web App URL is:
+
+```text
+https://script.google.com/macros/s/AKfycbyfr58LltoT7nAMR6IVoP6BjqPCc1Q3SNgIH1gsdOzwn7EW14uquQv3a4QB2RGxSE5Uog/exec
+```
+
+Current Script Properties:
+
+```text
+SMART_MIXED_ASCII_WORDS_FILE_ID=1PaH_srJBr0tcjooqaw1QeMCm4DnOJlQw
+USER_PHRASES_FILE_ID=1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
+```
 
 ## Local Config
 
@@ -41,8 +75,8 @@ Use direct Google Drive download URLs:
 {
   "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_FOR_SMART_MIXED_ASCII_WORDS",
   "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_FOR_DATA_TXT",
-  "smartMixedASCIIWordsUploadURL": "https://example.com/upload/smart-mixed-ascii-words.txt",
-  "userPhrasesUploadURL": "https://example.com/upload/data.txt"
+  "smartMixedASCIIWordsUploadURL": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec?target=smart",
+  "userPhrasesUploadURL": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec?target=user"
 }
 ```
 
@@ -62,7 +96,7 @@ Or use the input method menu item:
 
 The sync command downloads the two URLs from `patch-source.json`, validates both
 files, merges them with local changes, optionally uploads the merged result to
-the writeback URLs, backs up local files, and writes them into:
+the Apps Script writeback URLs, backs up local files, and writes them into:
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt

@@ -38,13 +38,13 @@
           以 McBopomofo 小麥注音為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/Broccoli-SmartInput-v1.0.1-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.2/Website/downloads/Broccoli-SmartInput-v1.0.2-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.0.1</dd>
+            <dd>v1.0.2</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -108,7 +108,7 @@
         <article class="feature">
           <span class="status done">同步方式</span>
           <h3><code>patch sync</code></h3>
-          <p>同步會先從本機 <code>patch-source.json</code> 指定的 Google Drive 下載最新詞庫，和本機變更合併；若也設定 writeback URL，還會把合併結果寫回雲端。同步前會先驗證格式，再備份舊檔。</p>
+          <p>同步會先從本機 <code>patch-source.json</code> 指定的 Google Drive 下載最新詞庫，和本機變更合併；若也設定 Google Apps Script writeback URL，還會把合併結果寫回雲端。同步前會先驗證格式，再備份舊檔。</p>
         </article>
       </div>
     </section>
@@ -137,7 +137,7 @@
         <article class="feature">
           <span class="status done">已完成</span>
           <h3>雲端詞庫同步</h3>
-          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結；若需要多人共用，還可以加上 writeback URL。</p>
+          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結；若需要多人共用，還可以加上 Google Apps Script writeback URL。</p>
         </article>
         <article class="feature">
           <span class="status base">沿用基底</span>
@@ -184,7 +184,7 @@
           <div class="keys"><kbd>輸入法選單</kbd></div>
           <div>
             <h3>同步雲端詞庫</h3>
-            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式；若有 writeback URL，合併後也會回寫雲端。</p>
+            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式；若有 Google Apps Script writeback URL，合併後也會回寫雲端。</p>
           </div>
         </div>
       </div>
@@ -196,12 +196,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/Broccoli-SmartInput-v1.0.1-personal.dmg" download>下載 Broccoli SmartInput v1.0.1 DMG</a>
-          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.1/Website/downloads/Broccoli-SmartInput-v1.0.1-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.2/Website/downloads/Broccoli-SmartInput-v1.0.2-personal.dmg" download>下載 Broccoli SmartInput v1.0.2 DMG</a>
+          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.2/Website/downloads/Broccoli-SmartInput-v1.0.2-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.1-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.2-personal.pkg</code>。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
         <li>若行為仍像舊版，登出再登入或重開機一次。</li>
@@ -219,8 +219,8 @@
           <p>完整安裝指令</p>
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
-        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.1-personal/Broccoli-SmartInput-v1.0.1-personal.pkg
-sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.1-personal/Broccoli-SmartInput-v1.0.1-personal.pkg -target /</code></pre>
+        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.2-personal/Broccoli-SmartInput-v1.0.2-personal.pkg
+sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.2-personal/Broccoli-SmartInput-v1.0.2-personal.pkg -target /</code></pre>
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
@@ -243,6 +243,25 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.1-personal/Broccoli-SmartI
         <a href="https://github.com/openvanilla/McBopomofo">McBopomofo 原始專案</a>
         <a href="https://mcbopomofo.openvanilla.org/">McBopomofo 官方網站</a>
         <a href="https://github.com/CloudHua183/Broccoli-SmartInput">Broccoli SmartInput Repo</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Release Notes</p>
+        <h2>v1.0.2 更新</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>Google Apps Script 雲端寫回</h3>
+          <p>本機 <code>patch-source.json</code> 現在同時支援下載與上傳端點；同步雲端詞庫時，會先下載、驗證、合併，再把結果寫回 Google Drive，讓多台電腦按同步後都能拿到同一份合併結果。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>版本對齊 v1.0.2</h3>
+          <p>網站下載區與本機安裝包名稱已統一改成 v1.0.2，方便和其他電腦的「檢查是否有新版」流程對照。</p>
+        </article>
       </div>
     </section>
 

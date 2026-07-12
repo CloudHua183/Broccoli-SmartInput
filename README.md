@@ -9,6 +9,13 @@
 - GitHub repo：`https://github.com/CloudHua183/Broccoli-SmartInput`
 - 主要分支：`smart-mixed-user-phrases`
 - 目前基準 commit：`44d7c4d Fix smart mixed input numeric and bopomofo handling`
+- 目前版本：`v1.0.2`
+
+## 本次更新重點
+
+- Google Apps Script Web App 已完成部署，可作為雲端詞庫回寫端點。
+- `patch-source.json` 已加入上傳 URL，支援多台電腦先下載、再合併、最後回寫同一份雲端詞庫。
+- 網站與安裝包版本已對齊到 `v1.0.2`。
 
 ## Obsidian 文件索引
 
@@ -109,7 +116,7 @@ data.txt: 1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
 /Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
 ```
 
-同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式，和本機詞庫合併；如果也設定了 writeback URL，還會把合併後結果寫回雲端，再備份本機舊檔並覆蓋：
+同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式，和本機詞庫合併；如果也設定了 Google Apps Script writeback URL，還會把合併後結果寫回雲端，再備份本機舊檔並覆蓋：
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt

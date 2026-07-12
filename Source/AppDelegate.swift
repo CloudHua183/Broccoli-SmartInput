@@ -178,8 +178,8 @@ enum BroccoliPatchError: Error, LocalizedError {
             {
               "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_1",
               "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_2",
-              "smartMixedASCIIWordsUploadURL": "https://example.com/upload/smart-mixed-ascii-words.txt",
-              "userPhrasesUploadURL": "https://example.com/upload/data.txt"
+              "smartMixedASCIIWordsUploadURL": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec?target=smart",
+              "userPhrasesUploadURL": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec?target=user"
             }
             """
         case .network(let message):
@@ -582,7 +582,7 @@ enum BroccoliPatchManager {
             cachePolicy: .reloadIgnoringLocalCacheData,
             timeoutInterval: kTimeoutInterval
         )
-        request.httpMethod = "PUT"
+        request.httpMethod = "POST"
         request.setValue("text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
 
         let body = Data(text.utf8)

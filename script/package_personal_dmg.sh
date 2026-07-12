@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export COPYFILE_DISABLE=1
 DIST_DIR="$ROOT_DIR/dist"
+DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/DerivedData}"
 VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
 PKG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.pkg"
 STAGING_DIR="$DIST_DIR/dmg-staging"
