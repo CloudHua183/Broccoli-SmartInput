@@ -189,7 +189,7 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: "下載 GitHub 最新 Release…",
             action: #selector(downloadBroccoliLatestRelease(_:)), keyEquivalent: "")
         menu.addItem(
-            withTitle: NSLocalizedString("About McBopomofo…", comment: ""),
+            withTitle: NSLocalizedString("About Broccoli SmartInput…", comment: ""),
             action: #selector(showAbout(_:)), keyEquivalent: "")
         return menu
     }
