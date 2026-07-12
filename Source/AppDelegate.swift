@@ -33,6 +33,8 @@ private let kNextCheckInterval: TimeInterval = 86400.0
 private let kTimeoutInterval: TimeInterval = 60.0
 private let kBroccoliPatchSmartMixedASCIIWordsURLKey = "BroccoliPatchSmartMixedASCIIWordsURL"
 private let kBroccoliPatchUserPhrasesURLKey = "BroccoliPatchUserPhrasesURL"
+private let kBroccoliPatchSmartMixedASCIIWordsUploadURLKey = "BroccoliPatchSmartMixedASCIIWordsUploadURL"
+private let kBroccoliPatchUserPhrasesUploadURLKey = "BroccoliPatchUserPhrasesUploadURL"
 private let kBroccoliPatchReleaseAPIURLKey = "BroccoliPatchReleaseAPIURL"
 private let kBroccoliPatchReleasePageURLKey = "BroccoliPatchReleasePageURL"
 private let kBroccoliPatchSourceConfigFileName = "patch-source.json"
@@ -175,7 +177,9 @@ enum BroccoliPatchError: Error, LocalizedError {
             Example:
             {
               "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_1",
-              "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_2"
+              "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_2",
+              "smartMixedASCIIWordsUploadURL": "https://example.com/upload/smart-mixed-ascii-words.txt",
+              "userPhrasesUploadURL": "https://example.com/upload/data.txt"
             }
             """
         case .network(let message):
@@ -391,6 +395,7 @@ enum BroccoliPatchDictionaryMerger {
 
 struct BroccoliPatchSyncReport {
     var updatedFiles: [String] = []
+    var uploadedFiles: [String] = []
     var backupFiles: [String] = []
 }
 
@@ -404,6 +409,8 @@ struct BroccoliPatchRelease {
 struct BroccoliPatchDictionarySource {
     let smartMixedASCIIWordsURL: String
     let userPhrasesURL: String
+    let smartMixedASCIIWordsUploadURL: String?
+    let userPhrasesUploadURL: String?
 }
 
 enum BroccoliPatchManager {
@@ -452,10 +459,25 @@ enum BroccoliPatchManager {
         )
 
         var report = BroccoliPatchSyncReport()
+        if let smartWordsUploadURL = source.smartMixedASCIIWordsUploadURL {
+            try uploadText(mergedSmartWords, to: smartWordsUploadURL)
+            report.uploadedFiles.append(LanguageModelManager.smartMixedASCIIWordsDataPath)
+        }
         try writeSyncedFile(mergedSmartWords, to: LanguageModelManager.smartMixedASCIIWordsDataPath, report: &report)
+        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(
+            source.smartMixedASCIIWordsUploadURL == nil ? smartWords : mergedSmartWords,
+            kind: .smartMixedASCIIWords
+        )
+
+        if let userPhrasesUploadURL = source.userPhrasesUploadURL {
+            try uploadText(mergedUserPhrases, to: userPhrasesUploadURL)
+            report.uploadedFiles.append(LanguageModelManager.userPhrasesDataPathMcBopomofo)
+        }
         try writeSyncedFile(mergedUserPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
-        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(smartWords, kind: .smartMixedASCIIWords)
-        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(userPhrases, kind: .userPhrases)
+        try BroccoliPatchDictionaryMerger.storeCachedBaseSnapshot(
+            source.userPhrasesUploadURL == nil ? userPhrases : mergedUserPhrases,
+            kind: .userPhrases
+        )
         LanguageModelManager.loadUserPhrases(enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
         return report
     }
@@ -469,7 +491,9 @@ enum BroccoliPatchManager {
         {
             return BroccoliPatchDictionarySource(
                 smartMixedASCIIWordsURL: smartWordsURL,
-                userPhrasesURL: userPhrasesURL)
+                userPhrasesURL: userPhrasesURL,
+                smartMixedASCIIWordsUploadURL: optionalUploadURL(for: kBroccoliPatchSmartMixedASCIIWordsUploadURLKey),
+                userPhrasesUploadURL: optionalUploadURL(for: kBroccoliPatchUserPhrasesUploadURLKey))
         }
 
         let configPath = patchSourceConfigPath
@@ -492,7 +516,9 @@ enum BroccoliPatchManager {
             }
             return BroccoliPatchDictionarySource(
                 smartMixedASCIIWordsURL: smartWordsURL,
-                userPhrasesURL: userPhrasesURL)
+                userPhrasesURL: userPhrasesURL,
+                smartMixedASCIIWordsUploadURL: optionalUploadURL(json: json, key: "smartMixedASCIIWordsUploadURL"),
+                userPhrasesUploadURL: optionalUploadURL(json: json, key: "userPhrasesUploadURL"))
         } catch let error as BroccoliPatchError {
             throw error
         } catch {
@@ -546,6 +572,47 @@ enum BroccoliPatchManager {
         return text
     }
 
+    private static func uploadText(_ text: String, to urlString: String) throws {
+        guard let url = URL(string: urlString) else {
+            throw BroccoliPatchError.badURL(urlString)
+        }
+
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: kTimeoutInterval
+        )
+        request.httpMethod = "PUT"
+        request.setValue("text/plain; charset=utf-8", forHTTPHeaderField: "Content-Type")
+
+        let body = Data(text.utf8)
+        let semaphore = DispatchSemaphore(value: 0)
+        var responseError: Error?
+        var responseStatusCode: Int?
+
+        URLSession.shared.uploadTask(with: request, from: body) { _, response, error in
+            responseError = error
+            if let httpResponse = response as? HTTPURLResponse {
+                responseStatusCode = httpResponse.statusCode
+            }
+            semaphore.signal()
+        }.resume()
+
+        semaphore.wait()
+
+        if let responseError {
+            throw BroccoliPatchError.network(responseError.localizedDescription)
+        }
+
+        guard let responseStatusCode else {
+            throw BroccoliPatchError.network("Cloud upload did not return an HTTP response: \(urlString)")
+        }
+
+        guard (200...299).contains(responseStatusCode) else {
+            throw BroccoliPatchError.network("Cloud upload failed with HTTP \(responseStatusCode): \(urlString)")
+        }
+    }
+
     private static func downloadData(from urlString: String) throws -> Data {
         guard let url = URL(string: urlString) else {
             throw BroccoliPatchError.badURL(urlString)
@@ -590,6 +657,22 @@ enum BroccoliPatchManager {
         if validWordCount == 0 {
             throw BroccoliPatchError.invalidDictionary("smart-mixed-ascii-words.txt does not contain any usable words.")
         }
+    }
+
+    private static func optionalUploadURL(for key: String) -> String? {
+        guard let value = UserDefaults.standard.string(forKey: key) else {
+            return nil
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func optionalUploadURL(json: [String: Any], key: String) -> String? {
+        guard let value = json[key] as? String else {
+            return nil
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func validateUserPhrases(_ content: String) throws {
@@ -818,9 +901,14 @@ extension AppDelegate {
                 switch result {
                 case .success(let report):
                     let fileList = report.updatedFiles.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", ")
+                    let uploadList = report.uploadedFiles.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", ")
+                    var content = "已更新：\(fileList)"
+                    if !uploadList.isEmpty {
+                        content += "\n已回寫雲端：\(uploadList)"
+                    }
                     NonModalAlertWindowController.shared.show(
                         title: "雲端詞庫同步完成",
-                        content: "已更新：\(fileList)",
+                        content: content,
                         confirmButtonTitle: NSLocalizedString("OK", comment: ""),
                         cancelButtonTitle: nil,
                         cancelAsDefault: false,

@@ -108,7 +108,7 @@
         <article class="feature">
           <span class="status done">同步方式</span>
           <h3><code>patch sync</code></h3>
-          <p>同步會同時更新這兩個檔案，來源由本機 <code>patch-source.json</code> 指定的 Google Drive 連結決定。同步前會先驗證格式，再備份舊檔。</p>
+          <p>同步會先從本機 <code>patch-source.json</code> 指定的 Google Drive 下載最新詞庫，和本機變更合併；若也設定 writeback URL，還會把合併結果寫回雲端。同步前會先驗證格式，再備份舊檔。</p>
         </article>
       </div>
     </section>
@@ -137,7 +137,7 @@
         <article class="feature">
           <span class="status done">已完成</span>
           <h3>雲端詞庫同步</h3>
-          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結。</p>
+          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結；若需要多人共用，還可以加上 writeback URL。</p>
         </article>
         <article class="feature">
           <span class="status base">沿用基底</span>
@@ -184,7 +184,7 @@
           <div class="keys"><kbd>輸入法選單</kbd></div>
           <div>
             <h3>同步雲端詞庫</h3>
-            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式並備份本機舊檔。</p>
+            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式；若有 writeback URL，合併後也會回寫雲端。</p>
           </div>
         </div>
       </div>

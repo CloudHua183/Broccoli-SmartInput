@@ -131,6 +131,9 @@ private func patch() -> Int32 {
             for file in report.updatedFiles {
                 print("updated \(file)")
             }
+            for file in report.uploadedFiles {
+                print("uploaded \(file)")
+            }
             for file in report.backupFiles {
                 print("backup \(file)")
             }

@@ -65,7 +65,7 @@
 - `SharedDictionary/data.example.txt`
   - 使用者詞庫範例。
 - `SharedDictionary/patch-source.example.json`
-  - Google Drive 下載 URL 設定範例。
+  - Google Drive 下載 URL 與可選寫回 URL 設定範例。
 
 真正的私人檔案放在 Google Drive：
 
@@ -109,7 +109,7 @@ data.txt: 1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
 /Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
 ```
 
-同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式、備份本機舊檔，然後覆蓋：
+同步會從 `patch-source.json` 指定的 Google Drive 連結下載，驗證格式，和本機詞庫合併；如果也設定了 writeback URL，還會把合併後結果寫回雲端，再備份本機舊檔並覆蓋：
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt

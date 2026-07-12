@@ -9,7 +9,7 @@ GitHub repo. Store them in Google Drive and keep only example files here.
 
 - `smart-mixed-ascii-words.example.txt`: example English/product-name allowlist.
 - `data.example.txt`: example McBopomofo user phrase dictionary.
-- `patch-source.example.json`: local config template for Google Drive download URLs.
+- `patch-source.example.json`: local config template for Google Drive download URLs and optional writeback URLs.
 
 ## Private Files In Google Drive
 
@@ -22,6 +22,10 @@ Set sharing to "anyone with the link" only if link-based access is acceptable.
 That is not strict privacy: anyone with the URL can read the files. For stronger
 privacy, restrict access to specific Google accounts, but automatic sync then
 needs OAuth instead of simple download URLs.
+
+If you want true multi-computer writeback, provide upload URLs as well. The app
+downloads the latest cloud copy, merges local changes, uploads the merged
+result, and then refreshes the local files.
 
 ## Local Config
 
@@ -36,7 +40,9 @@ Use direct Google Drive download URLs:
 ```json
 {
   "smartMixedASCIIWordsURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_FOR_SMART_MIXED_ASCII_WORDS",
-  "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_FOR_DATA_TXT"
+  "userPhrasesURL": "https://drive.google.com/uc?export=download&id=GOOGLE_FILE_ID_FOR_DATA_TXT",
+  "smartMixedASCIIWordsUploadURL": "https://example.com/upload/smart-mixed-ascii-words.txt",
+  "userPhrasesUploadURL": "https://example.com/upload/data.txt"
 }
 ```
 
@@ -55,9 +61,12 @@ Or use the input method menu item:
 ```
 
 The sync command downloads the two URLs from `patch-source.json`, validates both
-files, backs up local files, and writes them into:
+files, merges them with local changes, optionally uploads the merged result to
+the writeback URLs, backs up local files, and writes them into:
 
 ```text
 ~/Library/Application Support/McBopomofo/data.txt
 ~/Library/Application Support/McBopomofo/smart-mixed-ascii-words.txt
 ```
+
+If upload URLs are omitted, sync behaves as read-only download plus local merge.
