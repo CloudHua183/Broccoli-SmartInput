@@ -44,6 +44,55 @@ private let kDefaultBroccoliPatchReleaseAPIURL =
 private let kDefaultBroccoliPatchReleasePageURL =
     "https://github.com/CloudHua183/Broccoli-SmartInput/releases/latest"
 
+enum BroccoliDiagnostics {
+    static let logFileName = "diagnostics.log"
+
+    static var logFileURL: URL {
+        let basePath = LanguageModelManager.dataFolderPath
+        return URL(fileURLWithPath: basePath, isDirectory: true).appendingPathComponent(logFileName)
+    }
+
+    static func log(_ message: String, function: String = #function) {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let line = "[\(formatter.string(from: Date()))] \(function): \(message)\n"
+
+        print(line, terminator: "")
+        NSLog("%@", line.trimmingCharacters(in: .newlines))
+
+        let url = logFileURL
+        let directoryURL = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true, attributes: nil)
+
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? line.data(using: .utf8)?.write(to: url, options: .atomic)
+            return
+        }
+
+        guard let handle = try? FileHandle(forWritingTo: url) else {
+            return
+        }
+        handle.seekToEndOfFile()
+        if let data = line.data(using: .utf8) {
+            try? handle.write(contentsOf: data)
+        }
+        handle.closeFile()
+    }
+
+    static func readLog() -> String {
+        let url = logFileURL
+        guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8), !text.isEmpty else {
+            return "No diagnostics have been recorded yet.\nLog file: \(url.path)"
+        }
+        return text
+    }
+
+    static func reset() {
+        let url = logFileURL
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
 struct VersionUpdateReport {
     var siteUrl: URL?
     var currentShortVersion: String = ""

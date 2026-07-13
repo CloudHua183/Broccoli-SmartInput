@@ -88,6 +88,8 @@ class McBopomofoInputMethodController: IMKInputController {
     }
 
     override func menu() -> NSMenu! {
+        BroccoliDiagnostics.log(
+            "menu() called; host=\(clientBundleIdentifier(currentClient)); inputMode=\(keyHandler.inputMode.rawValue); latestIssues=\(Self.latestUserFileIssues.count)")
         let menu = NSMenu(title: "Input Method Menu")
 
         let chineseConversionItem = menu.addItem(
@@ -198,6 +200,8 @@ class McBopomofoInputMethodController: IMKInputController {
 
     override func activateServer(_ client: Any!) {
         UserDefaults.standard.synchronize()
+        BroccoliDiagnostics.log(
+            "activateServer called; host=\(clientBundleIdentifier(client)); inputMode=\(keyHandler.inputMode.rawValue)")
 
         // Override the keyboard layout. Use US if not set.
         (client as? IMKTextInput)?.overrideKeyboard(
@@ -212,6 +216,8 @@ class McBopomofoInputMethodController: IMKInputController {
     }
 
     override func deactivateServer(_ client: Any!) {
+        BroccoliDiagnostics.log(
+            "deactivateServer called; host=\(clientBundleIdentifier(client)); state=\(type(of: state))")
         currentClient = nil
         keyHandler.clear()
         self.handle(state: .Deactivated(), client: client)
@@ -219,6 +225,8 @@ class McBopomofoInputMethodController: IMKInputController {
 
     override func setValue(_ value: Any!, forTag tag: Int, client: Any!) {
         let newInputMode = InputMode(rawValue: value as? String ?? InputMode.bopomofo.rawValue)
+        BroccoliDiagnostics.log(
+            "setValue called; host=\(clientBundleIdentifier(client)); tag=\(tag); oldMode=\(keyHandler.inputMode.rawValue); newMode=\(newInputMode.rawValue)")
         LanguageModelManager.loadDataModel(newInputMode)
         if keyHandler.inputMode != newInputMode {
             UserDefaults.standard.synchronize()
@@ -232,6 +240,10 @@ class McBopomofoInputMethodController: IMKInputController {
 
         // Since setValue is called after activateServer, show user file issues here, if any.
         checkUserFileIssues()
+    }
+
+    private func clientBundleIdentifier(_ client: Any?) -> String {
+        (client as? IMKTextInput)?.bundleIdentifier() ?? "unknown"
     }
 
     // MARK: - IMKServerInput protocol methods

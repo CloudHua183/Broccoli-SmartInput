@@ -46,7 +46,7 @@ Deploy the script as a Web App, then use the same deployment URL with:
 The script validates the uploaded text, takes a script lock while writing, and
 updates the matching Drive file in place.
 
-## v1.0.2 Deployment Notes
+## v1.0.8 Deployment Notes
 
 The current deployed Web App URL is:
 

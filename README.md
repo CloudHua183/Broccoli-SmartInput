@@ -9,13 +9,14 @@
 - GitHub repo：`https://github.com/CloudHua183/Broccoli-SmartInput`
 - 主要分支：`smart-mixed-user-phrases`
 - 目前基準 commit：`44d7c4d Fix smart mixed input numeric and bopomofo handling`
-- 目前版本：`v1.0.2`
+- 目前版本：`v1.0.8`
 
 ## 本次更新重點
 
 - Google Apps Script Web App 已完成部署，可作為雲端詞庫回寫端點。
 - `patch-source.json` 已加入上傳 URL，支援多台電腦先下載、再合併、最後回寫同一份雲端詞庫。
-- 網站與安裝包版本已對齊到 `v1.0.2`。
+- Release 安裝與啟用流程已整理，網站與安裝包版本對齊到 `v1.0.8`。
+- 針對 Telegram、Hermes、Arc 等 long-lived app 的排查已完成，確認問題核心是「更新輸入法後，部分已開著的 App 沒有重新建立 IMK 連線」。
 
 ## Obsidian 文件索引
 
@@ -200,3 +201,11 @@ cd /Users/cloudhuamacmini/Desktop/Projects/IME/McBopomofo
 
 - `script/package_personal_installer.sh`
   - 個人安裝包產生腳本。
+
+## 最近幾次排查的收穫摘要
+
+- 目前在 Chrome + Canva 可正常切換並顯示花椰輸入法選單，代表輸入法 bundle 本身與選單建構邏輯正常。
+- Telegram、Hermes、Arc + Canva 異常時，診斷紀錄沒有進入 `activateServer`、`setValue`、`menu()`，代表問題不在按鍵攔截，而是那些 App 根本沒有連到新版輸入法 controller。
+- 問題與這些 App 長時間不關閉有關。當輸入法被重裝或重新註冊後，部分 App 仍保留舊的 InputMethodKit 連線，所以畫面上雖然看到輸入法被勾選，但下方服務選單不出現，實際上也無法輸入。
+- 已在安裝流程補上更保守的 Release build、LaunchServices 重新註冊，以及 `TextInputMenuAgent` / `imklaunchagent` 這一層的刷新，能降低更新後殘留舊連線的機率。
+- 若某個 App 在更新輸入法後仍只顯示勾選、卻沒有花椰輸入法功能項目，最有效的處理是「完全關閉該 App 再重開」，而不是只切換輸入法來源。

@@ -117,7 +117,7 @@ private func install() -> Int32 {
 
 private func patch() -> Int32 {
     guard CommandLine.arguments.count > 2 else {
-        print("Usage: McBopomofo patch sync|check-release|download-release|open-release")
+        print("Usage: McBopomofo patch sync|check-release|download-release|open-release|diagnostics|reset-diagnostics")
         return 2
     }
 
@@ -138,6 +138,13 @@ private func patch() -> Int32 {
                 print("backup \(file)")
             }
             return 0
+        case "diagnostics":
+            print(BroccoliDiagnostics.readLog(), terminator: "")
+            return 0
+        case "reset-diagnostics":
+            BroccoliDiagnostics.reset()
+            print("Diagnostics log cleared.")
+            return 0
         case "check-release":
             let release = try BroccoliPatchManager.latestRelease()
             print("Latest release: \(release.tagName)")
@@ -157,7 +164,7 @@ private func patch() -> Int32 {
             return 0
         default:
             print("Unknown patch command: \(CommandLine.arguments[2])")
-            print("Usage: McBopomofo patch sync|check-release|download-release|open-release")
+            print("Usage: McBopomofo patch sync|check-release|download-release|open-release|diagnostics|reset-diagnostics")
             return 2
         }
     } catch {

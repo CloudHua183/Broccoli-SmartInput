@@ -9,6 +9,7 @@ DIST_DIR="$ROOT_DIR/dist"
 STAGING_DIR="$DIST_DIR/personal-installer-staging"
 SCRIPTS_DIR="$STAGING_DIR/scripts"
 APP_SOURCE="$DERIVED_DATA_PATH/Build/Products/Release/McBopomofo.app"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister"
 VERSION="$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$ROOT_DIR/Source/McBopomofo-Info.plist" 2>/dev/null || echo dev)"
 PKG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.pkg"
 
@@ -16,7 +17,7 @@ PKG_PATH="$DIST_DIR/Broccoli-SmartInput-v${VERSION}-personal.pkg"
 /bin/rm -rf "$STAGING_DIR"
 /bin/mkdir -p "$SCRIPTS_DIR"
 
-xcodebuild build \
+xcodebuild clean build \
   -project "$PROJECT_PATH" \
   -scheme McBopomofo \
   -configuration Release \
@@ -57,6 +58,7 @@ fi
 INPUT_METHODS_DIR="$USER_HOME/Library/Input Methods"
 TARGET_APP="$INPUT_METHODS_DIR/McBopomofo.app"
 SUPPORT_DIR="$USER_HOME/Library/Application Support/McBopomofo"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister"
 
 /usr/bin/killall McBopomofo >/dev/null 2>&1 || true
 /usr/bin/find "$SCRIPT_DIR" -name '._*' -delete >/dev/null 2>&1 || true
@@ -64,6 +66,11 @@ SUPPORT_DIR="$USER_HOME/Library/Application Support/McBopomofo"
 /bin/mkdir -p "$INPUT_METHODS_DIR"
 /bin/rm -rf "$TARGET_APP"
 /usr/bin/ditto --norsrc "$APP_BUNDLE" "$TARGET_APP"
+
+if [[ -d "$TARGET_APP/McBopomofo.app" ]]; then
+  echo "error: nested input method bundle detected: $TARGET_APP/McBopomofo.app" >&2
+  exit 1
+fi
 
 /bin/mkdir -p "$SUPPORT_DIR"
 if [[ -d "$USER_DATA" ]]; then
@@ -73,6 +80,10 @@ fi
 /usr/bin/xattr -dr com.apple.quarantine "$TARGET_APP" >/dev/null 2>&1 || true
 /usr/bin/find "$TARGET_APP" "$SUPPORT_DIR" -name '._*' -delete >/dev/null 2>&1 || true
 /usr/sbin/chown -R "$CONSOLE_USER":staff "$TARGET_APP" "$SUPPORT_DIR"
+
+/usr/bin/codesign --verify --deep --strict --verbose=2 "$TARGET_APP"
+/bin/launchctl asuser "$USER_ID" /usr/bin/sudo -u "$CONSOLE_USER" "$LSREGISTER" -f -R -trusted "$TARGET_APP" >/dev/null 2>&1 || true
+/bin/launchctl asuser "$USER_ID" /usr/bin/sudo -u "$CONSOLE_USER" /usr/bin/killall TextInputMenuAgent >/dev/null 2>&1 || true
 
 /bin/launchctl asuser "$USER_ID" /usr/bin/sudo -u "$CONSOLE_USER" "$TARGET_APP/Contents/MacOS/McBopomofo" install --all --select >/dev/null 2>&1 || true
 
@@ -88,6 +99,10 @@ POSTINSTALL
   --identifier "tw.huaye.inputmethod.personal" \
   --version "$VERSION" \
   "$PKG_PATH"
+
+# The Xcode build phase registers the build product with LaunchServices. Remove
+# that temporary registration so it cannot compete with an installed copy.
+"$LSREGISTER" -u "$APP_SOURCE" >/dev/null 2>&1 || true
 
 /bin/rm -rf "$STAGING_DIR"
 
