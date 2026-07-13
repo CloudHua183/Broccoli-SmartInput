@@ -46,7 +46,7 @@ Deploy the script as a Web App, then use the same deployment URL with:
 The script validates the uploaded text, takes a script lock while writing, and
 updates the matching Drive file in place.
 
-## v1.0.8 Deployment Notes
+## v1.0.9 Deployment Notes
 
 The current deployed Web App URL is:
 
@@ -60,6 +60,8 @@ Current Script Properties:
 SMART_MIXED_ASCII_WORDS_FILE_ID=1PaH_srJBr0tcjooqaw1QeMCm4DnOJlQw
 USER_PHRASES_FILE_ID=1Gp48qRsqXBXxtUdoPcTL-i5N3RBC2w5d
 ```
+
+For `v1.0.9`, the Web App access setting was corrected from owner-only access to public web-app access so background uploads from Broccoli SmartInput no longer fail with HTTP 401. A full local `patch sync` run was verified after the access change, including both uploads.
 
 ## Local Config
 

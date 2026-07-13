@@ -9,14 +9,16 @@
 - GitHub repo：`https://github.com/CloudHua183/Broccoli-SmartInput`
 - 主要分支：`smart-mixed-user-phrases`
 - 目前基準 commit：`44d7c4d Fix smart mixed input numeric and bopomofo handling`
-- 目前版本：`v1.0.8`
+- 目前版本：`v1.0.9`
 
 ## 本次更新重點
 
 - Google Apps Script Web App 已完成部署，可作為雲端詞庫回寫端點。
 - `patch-source.json` 已加入上傳 URL，支援多台電腦先下載、再合併、最後回寫同一份雲端詞庫。
-- Release 安裝與啟用流程已整理，網站與安裝包版本對齊到 `v1.0.8`。
+- Release 安裝與啟用流程已整理，網站與安裝包版本對齊到 `v1.0.9`。
+- Google Apps Script Web App 已修正成可匿名存取，`patch sync` 實測可完成下載、合併與回寫。
 - 針對 Telegram、Hermes、Arc 等 long-lived app 的排查已完成，確認問題核心是「更新輸入法後，部分已開著的 App 沒有重新建立 IMK 連線」。
+- Google Apps Script Web App 的雲端寫回權限已重新部署，修正 `同步雲端詞庫` 曾出現的 `HTTP 401` 上傳失敗。
 
 ## Obsidian 文件索引
 

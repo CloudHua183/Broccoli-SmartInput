@@ -38,13 +38,13 @@
           以 McBopomofo 小麥注音為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.8/Website/downloads/Broccoli-SmartInput-v1.0.8-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.0.8</dd>
+            <dd>v1.0.9</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -211,12 +211,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.8/Website/downloads/Broccoli-SmartInput-v1.0.8-personal.dmg" download>下載 Broccoli SmartInput v1.0.8 DMG</a>
-          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.8/Website/downloads/Broccoli-SmartInput-v1.0.8-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.dmg" download>下載 Broccoli SmartInput v1.0.9 DMG</a>
+          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.8-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.9-personal.pkg</code>。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
         <li>若行為仍像舊版，登出再登入或重開機一次。</li>
@@ -234,8 +234,8 @@
           <p>完整安裝指令</p>
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
-        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.8-personal/Broccoli-SmartInput-v1.0.8-personal.pkg
-sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.8-personal/Broccoli-SmartInput-v1.0.8-personal.pkg -target /</code></pre>
+        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.9-personal/Broccoli-SmartInput-v1.0.9-personal.pkg
+sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.9-personal/Broccoli-SmartInput-v1.0.9-personal.pkg -target /</code></pre>
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
@@ -264,7 +264,7 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.8-personal/Broccoli-SmartI
     <section class="section">
       <div class="section-heading">
         <p class="eyebrow">Release Notes</p>
-        <h2>v1.0.8 更新</h2>
+        <h2>v1.0.9 更新</h2>
       </div>
       <div class="feature-grid">
         <article class="feature">
@@ -274,13 +274,18 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.8-personal/Broccoli-SmartI
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>版本對齊 v1.0.8</h3>
-          <p>網站下載區、本機執行版本與安裝包名稱已統一改成 v1.0.8，方便和其他電腦的「檢查是否有新版」流程對照。</p>
+          <h3>版本對齊 v1.0.9</h3>
+          <p>網站下載區、本機執行版本與安裝包名稱已統一改成 v1.0.9，方便和其他電腦的「檢查是否有新版」流程對照。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
           <h3>輸入法更新後的 App 重連結論</h3>
           <p>Telegram、Hermes、Arc 這類長時間開著的 App，在輸入法更新後可能還保留舊的 InputMethodKit 連線。這時畫面上雖然看到輸入法被勾選，但功能選單不會出現，也無法正常輸入；完整關閉 App 再重開即可恢復。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>雲端詞庫寫回恢復</h3>
+          <p>Google Apps Script Web App 的存取權限已重新部署成可供背景同步使用，修正先前 `同步雲端詞庫` 會出現 `HTTP 401` 的問題。這版已實測完成下載、合併、上傳兩份詞庫檔案。</p>
         </article>
       </div>
     </section>
