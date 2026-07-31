@@ -38,13 +38,13 @@
           以 McBopomofo 小麥注音為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.0.10/Broccoli-SmartInput-v1.0.10-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.0.9</dd>
+            <dd>v1.0.10</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -52,7 +52,7 @@
           </div>
           <div>
             <dt>安裝包</dt>
-            <dd>2026-07-13</dd>
+            <dd>2026-07-31</dd>
           </div>
         </dl>
       </div>
@@ -211,12 +211,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.dmg" download>下載 Broccoli SmartInput v1.0.9 DMG</a>
-          <a class="button secondary" href="https://raw.githubusercontent.com/CloudHua183/Broccoli-SmartInput/v1.0.9/Website/downloads/Broccoli-SmartInput-v1.0.9-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.0.10/Broccoli-SmartInput-v1.0.10-personal.dmg" download>下載 Broccoli SmartInput v1.0.10 DMG</a>
+          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.0.10/Broccoli-SmartInput-v1.0.10-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.9-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.0.10-personal.pkg</code>。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
         <li>若行為仍像舊版，登出再登入或重開機一次。</li>
@@ -234,8 +234,8 @@
           <p>完整安裝指令</p>
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
-        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.9-personal/Broccoli-SmartInput-v1.0.9-personal.pkg
-sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.9-personal/Broccoli-SmartInput-v1.0.9-personal.pkg -target /</code></pre>
+        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.0.10-personal/Broccoli-SmartInput-v1.0.10-personal.pkg
+sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.10-personal/Broccoli-SmartInput-v1.0.10-personal.pkg -target /</code></pre>
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
@@ -264,28 +264,28 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.0.9-personal/Broccoli-SmartI
     <section class="section">
       <div class="section-heading">
         <p class="eyebrow">Release Notes</p>
-        <h2>v1.0.9 更新</h2>
+        <h2>v1.0.10 更新</h2>
       </div>
       <div class="feature-grid">
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>Google Apps Script 雲端寫回</h3>
-          <p>本機 <code>patch-source.json</code> 現在同時支援下載與上傳端點；同步雲端詞庫時，會先下載、驗證、合併，再把結果寫回 Google Drive，讓多台電腦按同步後都能拿到同一份合併結果。</p>
+          <h3>游標前選詞範圍更精準</h3>
+          <p>游標停在字尾時，候選清單只顯示結束於游標左側的詞。例如游標在 B 後方，會顯示 AB 的候選，不會混入從 B 開始的 BC。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>版本對齊 v1.0.9</h3>
-          <p>網站下載區、本機執行版本與安裝包名稱已統一改成 v1.0.9，方便和其他電腦的「檢查是否有新版」流程對照。</p>
+          <h3>手動選字不再連帶覆寫</h3>
+          <p>手動調整 A 字時，系統會保留同一候選詞內其他字的既有結果；接著改 B 字時，也不會讓內建選詞自動改回 A。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>輸入法更新後的 App 重連結論</h3>
-          <p>Telegram、Hermes、Arc 這類長時間開著的 App，在輸入法更新後可能還保留舊的 InputMethodKit 連線。這時畫面上雖然看到輸入法被勾選，但功能選單不會出現，也無法正常輸入；完整關閉 App 再重開即可恢復。</p>
+          <h3>通用安裝包與建置相容性</h3>
+          <p>v1.0.10 提供同時支援 Apple Silicon 與 Intel Mac 的簽章安裝包，並修正 Xcode 26.3 下 Swift Package 建置時的模組解析問題。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>雲端詞庫寫回恢復</h3>
-          <p>Google Apps Script Web App 的存取權限已重新部署成可供背景同步使用，修正先前 `同步雲端詞庫` 會出現 `HTTP 401` 的問題。這版已實測完成下載、合併、上傳兩份詞庫檔案。</p>
+          <h3>版本與下載連結同步</h3>
+          <p>網站下載區、安裝步驟與終端機指令都已更新為 v1.0.10，並直接連到 GitHub Release 的 DMG 與 PKG。</p>
         </article>
       </div>
     </section>
