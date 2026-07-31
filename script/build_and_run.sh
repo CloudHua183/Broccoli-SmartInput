@@ -14,7 +14,9 @@ xcodebuild build \
   -scheme "$SCHEME" \
   -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
-  -derivedDataPath "$DERIVED_DATA_PATH"
+  -derivedDataPath "$DERIVED_DATA_PATH" \
+  SWIFT_ENABLE_EXPLICIT_MODULES=NO \
+  CLANG_ENABLE_EXPLICIT_MODULES=NO
 
 /usr/bin/open -n "$APP_PATH"
 

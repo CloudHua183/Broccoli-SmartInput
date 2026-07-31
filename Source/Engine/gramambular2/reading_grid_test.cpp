@@ -637,6 +637,13 @@ TEST(ReadingGridTest, InputTest) {
   ASSERT_TRUE(Contains(candidates, "中"));
   ASSERT_TRUE(Contains(candidates, "鍾"));
 
+  auto endingCandidates = grid.candidatesEndingAt(grid.cursor());
+  ASSERT_TRUE(Contains(endingCandidates, "的"));
+  ASSERT_FALSE(Contains(endingCandidates, "年中"));
+  ASSERT_FALSE(Contains(endingCandidates, "年終"));
+  ASSERT_FALSE(Contains(endingCandidates, "中"));
+  ASSERT_FALSE(Contains(endingCandidates, "鍾"));
+
   ASSERT_TRUE(grid.overrideCandidate(7, "年終"));
   result = grid.walk();
   ASSERT_EQ(result.valuesAsStrings(),

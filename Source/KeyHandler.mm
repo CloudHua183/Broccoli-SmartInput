@@ -179,10 +179,38 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _languageModel->setExternalConverterEnabled(Preferences.chineseConversionStyle == ChineseConversionStyleModel);
 }
 
+- (void)preserveUnselectedValuesInCurrentNodeAt:(size_t)cursor
+{
+    size_t cursorPastNode = 0;
+    auto nodeIter = _latestWalk.findNodeAt(cursor, &cursorPastNode);
+    if (nodeIter == _latestWalk.nodes.cend() || *nodeIter == nullptr) {
+        return;
+    }
+
+    Formosa::Gramambular2::ReadingGrid::NodePtr node = *nodeIter;
+    std::vector<std::string> values = McBopomofo::Split(node->value());
+    if (values.size() != node->spanningLength()) {
+        return;
+    }
+
+    size_t nodeStart = cursorPastNode - node->spanningLength();
+    const auto& readings = _grid->readings();
+    for (size_t offset = 0; offset < node->spanningLength(); ++offset) {
+        Formosa::Gramambular2::ReadingGrid::Candidate candidate(
+            readings[nodeStart + offset], values[offset]);
+        _grid->overrideCandidate(nodeStart + offset, candidate);
+    }
+}
+
 - (void)fixNodeWithReading:(NSString *)reading value:(NSString *)value originalCursorIndex:(size_t)originalCursorIndex useMoveCursorAfterSelectionSetting:(BOOL)flag
 {
     size_t actualCursor = self.actualCandidateCursorIndex;
     Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading.UTF8String, value.UTF8String);
+
+    // A candidate may cover multiple readings. Split its current result into
+    // one-reading overrides first, so manually replacing A cannot re-walk and
+    // silently replace the remaining B values in the same candidate.
+    [self preserveUnselectedValuesInCurrentNodeAt:actualCursor];
     if (!_grid->overrideCandidate(actualCursor, candidate)) {
         return;
     }
@@ -2833,7 +2861,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 - (InputStateChoosingCandidate *)_buildCandidateStateFromInputtingState:(InputStateInputting *)inputting useVerticalMode:(BOOL)useVerticalMode
 {
-    auto candidates = _grid->candidatesAt(self.actualCandidateCursorIndex);
+    auto candidates = Preferences.selectPhraseAfterCursorAsCandidate
+        ? _grid->candidatesAt(self.actualCandidateCursorIndex)
+        : _grid->candidatesEndingAt(_grid->cursor());
 
     std::unordered_map<std::string, size_t> valueCountMap;
     for (const auto& c : candidates) {

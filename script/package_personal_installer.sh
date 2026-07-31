@@ -23,7 +23,9 @@ xcodebuild clean build \
   -configuration Release \
   -destination 'generic/platform=macOS' \
   -derivedDataPath "$DERIVED_DATA_PATH" \
-  ONLY_ACTIVE_ARCH=NO
+  ONLY_ACTIVE_ARCH=NO \
+  SWIFT_ENABLE_EXPLICIT_MODULES=NO \
+  CLANG_ENABLE_EXPLICIT_MODULES=NO
 
 if [[ ! -d "$APP_SOURCE" ]]; then
   echo "error: built app not found: $APP_SOURCE" >&2

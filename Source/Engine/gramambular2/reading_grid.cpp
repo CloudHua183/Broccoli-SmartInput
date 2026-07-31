@@ -231,6 +231,37 @@ std::vector<ReadingGrid::Candidate> ReadingGrid::candidatesAt(size_t loc) {
   return result;
 }
 
+std::vector<ReadingGrid::Candidate> ReadingGrid::candidatesEndingAt(
+    size_t loc) {
+  std::vector<Candidate> result;
+  if (loc == 0 || loc > readings_.size()) {
+    return result;
+  }
+
+  std::vector<NodeInSpan> nodes = overlappingNodesAt(loc - 1);
+  nodes.erase(
+      std::remove_if(nodes.begin(), nodes.end(),
+                     [loc](const auto& nodeInSpan) {
+                       return nodeInSpan.spanIndex +
+                                  nodeInSpan.node->spanningLength() !=
+                              loc;
+                     }),
+      nodes.end());
+
+  std::stable_sort(
+      nodes.begin(), nodes.end(), [](const auto& n1, const auto& n2) {
+        return n1.node->spanningLength() > n2.node->spanningLength();
+      });
+
+  for (const NodeInSpan& nodeInSpan : nodes) {
+    for (const LanguageModel::Unigram& unigram : nodeInSpan.node->unigrams()) {
+      result.emplace_back(nodeInSpan.node->reading(), unigram.value(),
+                          unigram.rawValue());
+    }
+  }
+  return result;
+}
+
 bool ReadingGrid::overrideCandidate(
     size_t loc, const ReadingGrid::Candidate& candidate,
     ReadingGrid::Node::OverrideType overrideType) {
