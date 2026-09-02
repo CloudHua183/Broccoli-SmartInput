@@ -517,12 +517,6 @@ private struct BasicPreferencesView: View {
                 Toggle(
                     localized("Beep upon input error"), isOn: $preferences.beepUponInputError)
             }
-
-            PreferenceRow {
-                Toggle(
-                    localized("Check for updates automatically"),
-                    isOn: $preferences.checkForUpdatesAutomatically)
-            }
         }
     }
 }

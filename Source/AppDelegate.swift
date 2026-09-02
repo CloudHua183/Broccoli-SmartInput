@@ -810,10 +810,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         LanguageModelManager.setupDataModelValueConverter()
         updateUserPhrases()
 
-        if UserDefaults.standard.object(forKey: kCheckUpdateAutomatically) == nil {
-            UserDefaults.standard.set(true, forKey: kCheckUpdateAutomatically)
-            UserDefaults.standard.synchronize()
-        }
+        // Broccoli SmartInput does not use the upstream McBopomofo update
+        // feed. Automatic update checking is disabled so that users are never
+        // directed to install the upstream package.
+        UserDefaults.standard.set(false, forKey: kCheckUpdateAutomatically)
+        UserDefaults.standard.synchronize()
 
         if UserDefaults.standard.object(forKey: kBeepUponInputErrorKey) == nil {
             UserDefaults.standard.set(true, forKey: kBeepUponInputErrorKey)
@@ -830,8 +831,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         NSApp.servicesProvider = serviceProvider
 
         enableBopomofoFontAnnotationSupportMenuItemIfRelevantFontsInstalled()
-
-        checkForUpdate()
     }
 
     @MainActor
@@ -849,6 +848,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
 
     @objc(checkForUpdateForced:)
     func checkForUpdate(forced: Bool) {
+        // Disabled for Broccoli SmartInput: the upstream update feed would
+        // offer the official McBopomofo package. Use the GitHub release menu
+        // items instead.
+        return
         if checkTask != nil {
             // busy
             return

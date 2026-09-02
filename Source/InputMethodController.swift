@@ -181,9 +181,6 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("McBopomofo Preferences", comment: ""),
             action: #selector(showPreferences(_:)), keyEquivalent: "")
         menu.addItem(
-            withTitle: NSLocalizedString("Check for Updates…", comment: ""),
-            action: #selector(checkForUpdate(_:)), keyEquivalent: "")
-        menu.addItem(
             withTitle: "開啟 GitHub 最新 Release…",
             action: #selector(openBroccoliLatestRelease(_:)), keyEquivalent: "")
         menu.addItem(
@@ -210,8 +207,6 @@ class McBopomofoInputMethodController: IMKInputController {
 
         keyHandler.clear()
         keyHandler.syncWithPreferences()
-
-        (NSApp.delegate as? AppDelegate)?.checkForUpdate()
     }
 
     override func deactivateServer(_ client: Any!) {

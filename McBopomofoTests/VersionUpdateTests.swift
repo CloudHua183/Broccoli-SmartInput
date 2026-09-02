@@ -25,25 +25,6 @@ import Testing
 
 @testable import McBopomofo
 
-@Suite("Version Update API Tests")
-final class VersionUpdateApiTests {
-    @Test("Version Update API Test")
-    func testFetchVersionUpdateInfo() async  {
-        let result = await withCheckedContinuation { continuation in
-            _ = VersionUpdateApi.check(forced: true) { result in
-                continuation.resume(returning: result)
-            }
-        }
-
-        switch result {
-        case let .failure(error):
-            Issue.record(error)
-        case .success:
-            break
-        }
-    }
-}
-
 @Suite("Broccoli Patch Sync Tests")
 final class BroccoliPatchSyncTests {
     @Test("Initial sync keeps both local and remote additions")
