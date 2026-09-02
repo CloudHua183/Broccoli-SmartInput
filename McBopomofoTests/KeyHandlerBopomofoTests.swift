@@ -38,13 +38,21 @@ class KeyHandlerBopomofoTests: XCTestCase {
     var savedKeyboardLayout: KeyboardLayout = .standard
     var chineseConversionEnabled: Bool = false
     var smartMixedInputEnabled: Bool = true
+    var associatedPhrasesEnabled: Bool = false
 
     override func setUpWithError() throws {
         savedKeyboardLayout = Preferences.keyboardLayout
         chineseConversionEnabled = Preferences.chineseConversionEnabled
         smartMixedInputEnabled = Preferences.smartMixedInputEnabled
+        associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.chineseConversionEnabled = false
         Preferences.smartMixedInputEnabled = true
+        // The test host shares its UserDefaults with the installed input
+        // method, so whatever the developer has switched on leaks into the
+        // suite. Associated phrases in particular change which state a
+        // committed syllable lands in, which silently breaks the tab tests.
+        // Pin it to the shipped default instead of inheriting it.
+        Preferences.associatedPhrasesEnabled = false
         Preferences.keyboardLayout = .standard
         LanguageModelManager.loadDataModels()
         handler = KeyHandler()
@@ -55,6 +63,7 @@ class KeyHandlerBopomofoTests: XCTestCase {
         Preferences.chineseConversionEnabled = chineseConversionEnabled
         Preferences.keyboardLayout = savedKeyboardLayout
         Preferences.smartMixedInputEnabled = smartMixedInputEnabled
+        Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
     }
 
     private func handle(
