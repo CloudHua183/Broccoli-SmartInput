@@ -35,7 +35,7 @@
         <p class="eyebrow">macOS 繁體注音智慧混輸實驗版</p>
         <h1 id="hero-title">花椰輸入法</h1>
         <p class="hero-copy">
-          以 McBopomofo 小麥注音 3.1（2496）為基底，加入中英混合輸入、個人詞庫快捷新增、雲端詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
+          以 McBopomofo 小麥注音 3.1（2496）為基底，加入中英混合輸入、個人詞庫快捷新增、iCloud 詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
           <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.dmg" download>下載 DMG</a>
@@ -85,7 +85,7 @@
       </div>
       <div>
         <strong>多機同步</strong>
-        <span>透過本機設定讀取私人 Google Drive 詞庫。</span>
+        <span>詞庫放 iCloud 雲碟，各台 Mac 自動同步。</span>
       </div>
     </section>
 
@@ -107,23 +107,23 @@
         </article>
         <article class="feature">
           <span class="status done">同步方式</span>
-          <h3><code>patch sync</code></h3>
-          <p>這個選項會先從雲端抓最新詞庫，和你本機新增的內容做合併；如果有設定 Google Apps Script writeback URL，合併結果還會再寫回雲端。換句話說，它不是單純覆蓋，而是把大家的新增詞慢慢合成同一份。</p>
+          <h3>iCloud 雲碟</h3>
+          <p>詞庫檔案放在 <code>iCloud 雲碟/BroccoliSmartInput</code>，輸入法直接讀寫那個資料夾。同步由 iCloud 負責，輸入法本身完全不連網。執行一次 <code>script/migrate_to_icloud_dictionary.sh</code> 就設定完成。</p>
         </article>
         <article class="feature">
           <span class="status done">本機重載</span>
           <h3>重新載入使用者詞彙</h3>
-          <p>如果你只是剛手動改了本機的 <code>data.txt</code> 或白名單，按這個選項就好。它只會重新讀取本機檔案，讓修改立刻生效，不會下載雲端，也不會上傳。</p>
+          <p>輸入法會用 FSEvents 監看詞庫資料夾，iCloud 同步進來的變動通常會自動生效。若你剛手動改了 <code>data.txt</code> 或白名單想立刻套用，按這個選項即可。</p>
         </article>
         <article class="feature">
           <span class="status done">白話流程</span>
-          <h3>先本機，再同步</h3>
-          <p>你在 A 電腦新增 X，B 電腦新增 Y，C 電腦新增 Z，先各自留在本機；等三台都按一次 <code>同步雲端詞庫</code>，就會合成同一份 XYZ。要立刻吃到本機修改，才用 <code>重新載入使用者詞彙</code>。</p>
+          <h3>加完就好，不用按同步</h3>
+          <p>在任何一台 Mac 新增詞彙，檔案就直接寫進 iCloud 雲碟，其他 Mac 由 iCloud 自動收到。沒有「同步」這個步驟要按。唯一要注意的是不要兩台同時離線編輯，否則 iCloud 會產生衝突副本。</p>
         </article>
         <article class="feature">
           <span class="status done">排查結論</span>
           <h3>更新後若沒看到功能選單</h3>
-          <p>如果切到花椰輸入法後只有勾選，卻沒有出現「同步雲端詞庫」「關於花椰輸入法」等項目，通常不是你打字方式有問題，而是該 App 還握著舊的輸入法連線。最有效的處理是完整關閉那個 App 再重開。</p>
+          <p>如果切到花椰輸入法後只有勾選，卻沒有出現「關於花椰輸入法」等項目，通常不是你打字方式有問題，而是該 App 還握著舊的輸入法連線。最有效的處理是完整關閉那個 App 再重開。</p>
         </article>
       </div>
     </section>
@@ -151,8 +151,8 @@
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>雲端詞庫同步</h3>
-          <p>不把私人白名單與詞庫放進公開 GitHub。每台 Mac 透過本機 <code>patch-source.json</code> 指向 Google Drive 下載連結；若需要多人共用，還可以加上 Google Apps Script writeback URL。</p>
+          <h3>iCloud 詞庫同步</h3>
+          <p>私人白名單與詞庫不進公開 GitHub。詞庫資料夾指向 iCloud 雲碟，只有登入你 Apple 帳號的 Mac 讀得到，輸入法本身不對外連線，也沒有任何公開端點。</p>
         </article>
         <article class="feature">
           <span class="status base">沿用基底</span>
@@ -198,8 +198,8 @@
         <div class="shortcut">
           <div class="keys"><kbd>輸入法選單</kbd></div>
           <div>
-            <h3>同步雲端詞庫</h3>
-            <p>從 Google Drive 下載 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>，同步前會先驗證格式；若有 Google Apps Script writeback URL，合併後也會回寫雲端。</p>
+            <h3>重新載入使用者詞彙</h3>
+            <p>立刻重讀 <code>data.txt</code> 與 <code>smart-mixed-ascii-words.txt</code>。多機同步交給 iCloud 雲碟，不需要在選單裡按任何同步動作。</p>
           </div>
         </div>
       </div>
@@ -240,12 +240,11 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.1.0-personal/Broccoli-SmartI
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
-          <p>同步雲端詞庫指令</p>
+          <p>設定 iCloud 詞庫同步</p>
           <button class="copy-button" type="button" data-copy-target="terminal-sync-code">複製</button>
         </div>
-        <p class="terminal-note">若你已經完成安裝，也可用同一個輸入法選單同步雲端詞庫：</p>
-        <pre><code id="terminal-sync-code">/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch sync
-/Users/$USER/Library/Input\ Methods/McBopomofo.app/Contents/MacOS/McBopomofo patch check-release</code></pre>
+        <p class="terminal-note">要讓多台 Mac 共用同一份詞庫，在每台機器的原始碼目錄執行一次：</p>
+        <pre><code id="terminal-sync-code">./script/migrate_to_icloud_dictionary.sh</code></pre>
       </div>
     </section>
 
@@ -253,7 +252,7 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.1.0-personal/Broccoli-SmartI
       <div class="source-copy">
         <p class="eyebrow">Source</p>
         <h2>來源與開源基底</h2>
-        <p>花椰輸入法是 McBopomofo 小麥注音的改造實驗版，保留原本注音引擎與 macOS Input Method Kit 架構，再加入智慧混輸與私人詞庫同步。</p>
+        <p>花椰輸入法是 McBopomofo 小麥注音的改造實驗版，保留原本注音引擎與 macOS Input Method Kit 架構，再加入智慧混輸與 iCloud 私人詞庫同步。</p>
       </div>
       <div class="source-links">
         <a href="https://github.com/openvanilla/McBopomofo">McBopomofo 原始專案</a>
@@ -276,12 +275,17 @@ sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.1.0-personal/Broccoli-SmartI
         <article class="feature">
           <span class="status done">已完成</span>
           <h3>花椰功能完整保留</h3>
-          <p>智慧中英混輸、個人詞庫快捷新增、雲端詞庫同步、游標前選詞與使用者詞排序都已逐一移植到新基底，並通過引擎測試。</p>
+          <p>智慧中英混輸、個人詞庫快捷新增、游標前選詞與使用者詞排序都已逐一移植到新基底，並通過引擎測試。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
           <h3>不再連到官方小麥的更新來源</h3>
           <p>移除上游更新檢查，避免花椰使用者被導向安裝官方小麥注音。要取得新版請用選單的「開啟 / 下載 GitHub 最新 Release」。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">已完成</span>
+          <h3>詞庫同步改用 iCloud 雲碟</h3>
+          <p>不再使用需要匿名存取的雲端端點。詞庫放在 iCloud 雲碟，只有登入你 Apple 帳號的 Mac 讀得到，輸入法本身完全不連網。</p>
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
