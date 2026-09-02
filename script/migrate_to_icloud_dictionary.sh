@@ -37,6 +37,18 @@ echo "==> Target:  $TARGET_DIR"
 
 /bin/mkdir -p "$TARGET_DIR"
 
+# Once the migration has run, $TARGET_DIR is the live dictionary folder and
+# $SOURCE_DIR is a frozen backup. Copying source over target again would throw
+# away every phrase added since the first run, so detect that state and skip
+# the copy phase entirely.
+CURRENT_LOCATION="$(/usr/bin/defaults read "$DOMAIN" CustomUserPhraseLocation 2>/dev/null || true)"
+ALREADY_MIGRATED=0
+if [[ "$CURRENT_LOCATION" == "$TARGET_DIR" ]]; then
+  ALREADY_MIGRATED=1
+  echo "==> Already migrated; the dictionaries in iCloud are the live copies."
+  echo "    Skipping the copy phase so newer phrases are not overwritten."
+fi
+
 # Quit the input method first, so it cannot write the old location back over
 # the preferences we are about to set.
 /usr/bin/killall McBopomofo >/dev/null 2>&1 || true
@@ -45,6 +57,9 @@ echo "==> Target:  $TARGET_DIR"
 copied=0
 skipped=0
 for name in "${DICTIONARY_FILES[@]}"; do
+  if [[ $ALREADY_MIGRATED -eq 1 ]]; then
+    break
+  fi
   src="$SOURCE_DIR/$name"
   dst="$TARGET_DIR/$name"
   if [[ ! -f "$src" ]]; then
@@ -53,6 +68,12 @@ for name in "${DICTIONARY_FILES[@]}"; do
   if [[ -f "$dst" ]]; then
     if /usr/bin/cmp -s "$src" "$dst"; then
       echo "    same, skipped: $name"
+      skipped=$((skipped + 1))
+      continue
+    fi
+    # Second guard: never let an older source overwrite a newer target.
+    if [[ "$dst" -nt "$src" ]]; then
+      echo "    target is newer, kept: $name"
       skipped=$((skipped + 1))
       continue
     fi
@@ -65,7 +86,7 @@ for name in "${DICTIONARY_FILES[@]}"; do
   copied=$((copied + 1))
 done
 
-echo "==> $copied file(s) copied, $skipped already identical."
+echo "==> $copied file(s) copied, $skipped kept as-is."
 echo "==> Originals kept at $SOURCE_DIR"
 
 # Point the input method at the iCloud folder.
