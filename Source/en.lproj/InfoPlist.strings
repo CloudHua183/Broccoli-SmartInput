@@ -1,6 +1,6 @@
-CFBundleName = "McBopomofo";
-CFBundleDisplayName = "McBopomofo";
-NSHumanReadableCopyright = "Copyright © 2011-2026 Mengjuei Hsieh et al.\nAll Rights Reserved.";
-"org.openvanilla.inputmethod.McBopomofo.Bopomofo" = "Bopomofo";
+CFBundleName = "花椰輸入法";
+CFBundleDisplayName = "花椰輸入法";
+NSHumanReadableCopyright = "Copyright © 2011-2026 Mengjuei Hsieh et al.\nBroccoli SmartInput is built on McBopomofo (小麥注音).\nAll Rights Reserved.";
+"org.openvanilla.inputmethod.McBopomofo.Bopomofo" = "花椰輸入法";
 "org.openvanilla.inputmethod.McBopomofo.PlainBopomofo" = "Plain Bopomofo";
 

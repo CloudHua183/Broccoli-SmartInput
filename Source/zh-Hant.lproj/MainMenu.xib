@@ -17,7 +17,7 @@
                 <menuItem title="McBopomofo" id="56">
                     <menu key="submenu" title="McBopomofo" systemMenu="apple" id="57">
                         <items>
-                            <menuItem title="About McBopomofo" id="58">
+                            <menuItem title="關於花椰輸入法" id="58">
                                 <modifierMask key="keyEquivalentModifierMask"/>
                                 <connections>
                                     <action selector="orderFrontStandardAboutPanel:" target="-2" id="142"/>

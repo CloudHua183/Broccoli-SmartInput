@@ -158,7 +158,7 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("Check for Updates…", comment: ""),
             action: #selector(checkForUpdate(_:)), keyEquivalent: "")
         menu.addItem(
-            withTitle: NSLocalizedString("About McBopomofo…", comment: ""),
+            withTitle: NSLocalizedString("About Broccoli SmartInput…", comment: ""),
             action: #selector(showAbout(_:)), keyEquivalent: "")
         return menu
     }
