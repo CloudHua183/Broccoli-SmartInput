@@ -224,6 +224,10 @@ class ReadingGrid {
   // not have to care about this boundary condition.
   std::vector<Candidate> candidatesAt(size_t loc);
 
+  // Returns candidate values that end at loc. This is used by cursor-before
+  // candidate selection, where the cursor marks the end of the candidate.
+  std::vector<Candidate> candidatesEndingAt(size_t loc);
+
   // Adds weight to the node with the unigram that has the designated candidate
   // value and applies the desired override type, essentially resulting in user
   // override. An overridden node would influence the grid walk to favor walking

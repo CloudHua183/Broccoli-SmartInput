@@ -748,13 +748,35 @@ TEST(ReadingGridTest, InputTest) {
             (std::vector<std::string>{"高科技", "公司", "的", "年中", "獎金"}));
 
   ASSERT_EQ(grid.length(), 10);
-  grid.setCursor(7);  // Before 年中
+
+  // Readings 0-2 are 高科技, 3-4 公司, 5 的, 6-7 年中, 8-9 獎金. Cursor 7 sits
+  // inside 年中, between 年 and 中.
+  grid.setCursor(7);
 
   auto candidates = grid.candidatesAt(grid.cursor());
   ASSERT_TRUE(Contains(candidates, "年中"));
   ASSERT_TRUE(Contains(candidates, "年終"));
   ASSERT_TRUE(Contains(candidates, "中"));
   ASSERT_TRUE(Contains(candidates, "鍾"));
+
+  // candidatesEndingAt only returns nodes whose span ends exactly at the
+  // cursor, which is what cursor-before candidate selection needs. At cursor 7
+  // that is 年, not 的 (which ends at 6) and not 年中 (which ends at 8).
+  auto endingCandidates = grid.candidatesEndingAt(grid.cursor());
+  ASSERT_TRUE(Contains(endingCandidates, "年"));
+  ASSERT_FALSE(Contains(endingCandidates, "的"));
+  ASSERT_FALSE(Contains(endingCandidates, "年中"));
+  ASSERT_FALSE(Contains(endingCandidates, "年終"));
+  ASSERT_FALSE(Contains(endingCandidates, "中"));
+  ASSERT_FALSE(Contains(endingCandidates, "鍾"));
+
+  // Cursor 6 is the boundary right after 的.
+  grid.setCursor(6);
+  auto endingCandidatesAtSix = grid.candidatesEndingAt(grid.cursor());
+  ASSERT_TRUE(Contains(endingCandidatesAtSix, "的"));
+  ASSERT_FALSE(Contains(endingCandidatesAtSix, "年"));
+  ASSERT_FALSE(Contains(endingCandidatesAtSix, "年中"));
+  grid.setCursor(7);
 
   ASSERT_TRUE(grid.overrideCandidate(7, "年終"));
   result = grid.walk();
