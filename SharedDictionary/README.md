@@ -1,9 +1,44 @@
 # Broccoli SmartInput Private Dictionary Sync
 
+> **Superseded. Do not deploy the Apps Script web app for a new setup.**
+>
+> Multi-machine dictionary sync now runs through **iCloud Drive**, not through
+> a Google Apps Script web app. Run `script/migrate_to_icloud_dictionary.sh`
+> on each Mac: it copies the dictionaries into
+> `~/Library/Mobile Documents/com~apple~CloudDocs/BroccoliSmartInput`, points
+> `UseCustomUserPhraseLocation` / `CustomUserPhraseLocation` at that folder,
+> and retires `patch-source.json`. The input method already watches its
+> dictionary folder with FSEvents, so a file synced in by iCloud is reloaded
+> automatically. No application code is involved.
+>
+> **Why the change.** The input method cannot authenticate to Google, so the
+> web app deployment had to allow anonymous access. That made the deployment
+> URL alone sufficient to overwrite either dictionary, since
+> `DriveApp.setContent()` replaces the whole file, and the fork's sync merges
+> the remote copy into the local one and writes it back, so a single poisoned
+> upload would spread to every machine and persist. Letting iCloud Drive do
+> the syncing removes the network-facing surface entirely: the files are
+> reachable only from a Mac signed in to the owner's Apple Account.
+>
+> The rest of this document describes the retired Apps Script setup. It is
+> kept for reference and for anyone who still has the old deployment running
+> and needs to shut it down. If you do keep it, the `SHARED_SECRET` gate
+> below is mandatory.
+
 This folder documents dictionary sync for Broccoli SmartInput.
 
 The real dictionary files are private and must not be committed to this public
-GitHub repo. Store them in Google Drive and keep only example files here.
+GitHub repo. Keep only example files here.
+
+## Retiring an existing Apps Script deployment
+
+1. Apps Script editor, Deploy, Manage deployments: **archive** the old
+   deployment. Creating a new deployment does not disable the old URL.
+2. Google Drive: set the two dictionary files back to private. Their file ids
+   were published in this repository, so consider making fresh copies to get
+   new ids.
+3. Delete or rename `~/Library/Application Support/McBopomofo/patch-source.json`
+   on every machine. The migration script does this for you.
 
 ## Files
 

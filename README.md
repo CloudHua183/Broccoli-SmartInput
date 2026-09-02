@@ -66,7 +66,29 @@
 - 框選查詢 companion app。
 - Apple Developer 簽章與 notarization。
 
-## Drive Patch / 多台電腦同步
+## 多台電腦同步（現行做法：iCloud 雲碟）
+
+自 v1.1.0 起，多台電腦的詞庫同步改用 **iCloud 雲碟**，不再使用 Google Apps Script 端點。
+
+在每台 Mac 上執行一次：
+
+```bash
+./script/migrate_to_icloud_dictionary.sh
+```
+
+它會把詞庫複製到 `~/Library/Mobile Documents/com~apple~CloudDocs/BroccoliSmartInput`、
+把輸入法的使用者詞彙位置指到該資料夾、並把舊的 `patch-source.json` 停用。
+輸入法本來就用 FSEvents 監看詞庫資料夾，iCloud 同步進來的變動會自動重新載入，
+不需要任何額外程式碼。
+
+原本的檔案會保留在 `~/Library/Application Support/McBopomofo` 當備份，不會被刪除。
+
+**為什麼要換掉 Apps Script 做法**：輸入法無法向 Google 驗證身分，所以那個 Web App
+部署必須開放匿名存取。等於只要知道部署 URL 就能覆寫詞庫（`setContent()` 是整檔覆寫），
+而花椰的同步是「下載→合併進本機→回寫」，一次污染會擴散到所有機器並持續存在。
+改用 iCloud 之後，檔案只有登入你 Apple 帳號的 Mac 才讀得到，輸入法完全不碰網路。
+
+## Drive Patch / 多台電腦同步（已停用，僅供參考）
 
 公開 repo 不存放真正的個人詞庫。GitHub 只保留範例檔：
 
