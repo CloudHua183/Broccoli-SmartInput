@@ -60,7 +60,23 @@ else
   git remote add origin "$REMOTE"
 fi
 
-git fetch origin --quiet 2>/dev/null || true
+# Distinguish "the remote is empty" from "we could not reach the remote".
+# Treating a failed fetch as an empty remote would seed from this machine and
+# later fight whatever is already on the remote, so fail loudly instead.
+if ! git fetch origin 2>/tmp/broccoli-dict-fetch.err; then
+  echo "error: cannot reach $REMOTE" >&2
+  echo >&2
+  /bin/cat /tmp/broccoli-dict-fetch.err >&2
+  echo >&2
+  echo "GitHub no longer accepts an account password over https. Authenticate" >&2
+  echo "this machine first, then run this script again:" >&2
+  echo >&2
+  echo "    gh auth login" >&2
+  echo >&2
+  echo "Nothing was changed. Your dictionaries are untouched at:" >&2
+  echo "    $CURRENT_LOCATION" >&2
+  exit 1
+fi
 
 if git rev-parse --verify --quiet origin/main >/dev/null; then
   echo "==> Remote already has dictionaries; using them."
