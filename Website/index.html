@@ -85,7 +85,7 @@
       </div>
       <div>
         <strong>多機同步</strong>
-        <span>詞庫放 iCloud 雲碟，各台 Mac 自動同步。</span>
+        <span>詞庫放 iCloud 雲碟或私有 git repo，自動同步。</span>
       </div>
     </section>
 
@@ -107,8 +107,8 @@
         </article>
         <article class="feature">
           <span class="status done">同步方式</span>
-          <h3>iCloud 雲碟</h3>
-          <p>詞庫檔案放在 <code>iCloud 雲碟/BroccoliSmartInput</code>，輸入法直接讀寫那個資料夾。同步由 iCloud 負責，輸入法本身完全不連網。執行一次 <code>script/migrate_to_icloud_dictionary.sh</code> 就設定完成。</p>
+          <h3>指向同步資料夾</h3>
+          <p>輸入法直接讀寫你指定的詞庫資料夾，同步交給那個資料夾背後的服務，輸入法本身不對外連線。同一個 Apple 帳號用 iCloud 雲碟；不同帳號用私有 git repo，還多了版本歷史。</p>
         </article>
         <article class="feature">
           <span class="status done">本機重載</span>
@@ -151,8 +151,8 @@
         </article>
         <article class="feature">
           <span class="status done">已完成</span>
-          <h3>iCloud 詞庫同步</h3>
-          <p>私人白名單與詞庫不進公開 GitHub。詞庫資料夾指向 iCloud 雲碟，只有登入你 Apple 帳號的 Mac 讀得到，輸入法本身不對外連線，也沒有任何公開端點。</p>
+          <h3>私人詞庫多機同步</h3>
+          <p>私人白名單與詞庫不進公開 GitHub。詞庫資料夾指向 iCloud 雲碟或私有 git repo，只有你的裝置讀得到，輸入法本身不對外連線，也沒有任何公開端點。</p>
         </article>
         <article class="feature">
           <span class="status base">沿用基底</span>
@@ -232,19 +232,27 @@
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
-          <p>完整安裝指令</p>
+          <p>完整安裝指令（推薦）</p>
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
-        <pre><code id="terminal-install-code">xattr -dr com.apple.quarantine /Volumes/Broccoli-SmartInput-v1.1.0-personal/Broccoli-SmartInput-v1.1.0-personal.pkg
-sudo installer -pkg /Volumes/Broccoli-SmartInput-v1.1.0-personal/Broccoli-SmartInput-v1.1.0-personal.pkg -target /</code></pre>
+        <p class="terminal-note">用終端機下載可以完全避開 Gatekeeper 的「無法驗證」：<code>curl</code> 取得的檔案不會被加上隔離屬性，瀏覽器下載的才會。</p>
+        <pre><code id="terminal-install-code">curl -L -o /tmp/broccoli.pkg https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.pkg
+sudo installer -pkg /tmp/broccoli.pkg -target /
+open ~/Library/Input\ Methods/McBopomofo.app</code></pre>
+        <p class="terminal-note">已經用瀏覽器下載好 PKG 的話，先複製到 <code>/tmp</code> 再移除隔離屬性——DMG 是唯讀磁碟區，直接對裡面的檔案下 <code>xattr</code> 一定會失敗：</p>
+        <pre><code>cp ~/Downloads/Broccoli-SmartInput-v1.1.0-personal.pkg /tmp/broccoli.pkg
+xattr -dr com.apple.quarantine /tmp/broccoli.pkg
+sudo installer -pkg /tmp/broccoli.pkg -target /</code></pre>
       </div>
       <div class="terminal-panel">
         <div class="terminal-panel-bar">
-          <p>設定 iCloud 詞庫同步</p>
+          <p>設定多機詞庫同步</p>
           <button class="copy-button" type="button" data-copy-target="terminal-sync-code">複製</button>
         </div>
-        <p class="terminal-note">要讓多台 Mac 共用同一份詞庫，在每台機器的原始碼目錄執行一次：</p>
+        <p class="terminal-note">詞庫位置可以指向任何會自動同步的資料夾。同一個 Apple 帳號的多台 Mac 用 iCloud 雲碟最省事：</p>
         <pre><code id="terminal-sync-code">./script/migrate_to_icloud_dictionary.sh</code></pre>
+        <p class="terminal-note">若各台使用不同 Apple 帳號，改用私有 git repo。它同時提供版本歷史，詞庫被誤改時可以回溯：</p>
+        <pre><code>./script/setup_dict_sync.sh git@github.com:YOUR_NAME/YOUR_DICT_REPO.git</code></pre>
       </div>
     </section>
 

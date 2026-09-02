@@ -66,27 +66,37 @@
 - 框選查詢 companion app。
 - Apple Developer 簽章與 notarization。
 
-## 多台電腦同步（現行做法：iCloud 雲碟）
+## 多台電腦同步
 
-自 v1.1.0 起，多台電腦的詞庫同步改用 **iCloud 雲碟**，不再使用 Google Apps Script 端點。
+詞庫資料夾可以指向任何會自動同步的位置，輸入法本身完全不連網。`AppDelegate` 用 FSEvents 監看該資料夾，同步進來的變動會自動重新載入，不需要任何額外程式碼。
 
-在每台 Mac 上執行一次：
+### 同一個 Apple 帳號：iCloud 雲碟
 
 ```bash
 ./script/migrate_to_icloud_dictionary.sh
 ```
 
-它會把詞庫複製到 `~/Library/Mobile Documents/com~apple~CloudDocs/BroccoliSmartInput`、
-把輸入法的使用者詞彙位置指到該資料夾、並把舊的 `patch-source.json` 停用。
-輸入法本來就用 FSEvents 監看詞庫資料夾，iCloud 同步進來的變動會自動重新載入，
-不需要任何額外程式碼。
+複製詞庫到 `~/Library/Mobile Documents/com~apple~CloudDocs/BroccoliSmartInput`，設定 `CustomUserPhraseLocation`，停用舊的 `patch-source.json`。原始檔保留為備份，可重複執行。
 
-原本的檔案會保留在 `~/Library/Application Support/McBopomofo` 當備份，不會被刪除。
+### 不同 Apple 帳號：私有 git repo（本專案現行做法）
 
-**為什麼要換掉 Apps Script 做法**：輸入法無法向 Google 驗證身分，所以那個 Web App
-部署必須開放匿名存取。等於只要知道部署 URL 就能覆寫詞庫（`setContent()` 是整檔覆寫），
-而花椰的同步是「下載→合併進本機→回寫」，一次污染會擴散到所有機器並持續存在。
-改用 iCloud 之後，檔案只有登入你 Apple 帳號的 Mac 才讀得到，輸入法完全不碰網路。
+iCloud 雲碟的共享資料夾在此環境無法建立——macOS 在產生共享連結時回報「無法與輔助應用程式通訊」，屬 `sharingd` 層的故障，非本專案可控。改用私有 git repo：
+
+```bash
+./script/setup_dict_sync.sh git@github.com:YOUR_NAME/YOUR_DICT_REPO.git
+```
+
+**repo 的工作目錄就是詞庫資料夾**，輸入法直接讀寫它，所以不存在「哪一份才是最新」的問題。`script/dict_sync.sh` 由 launchd 每 900 秒執行一次：commit 本機變更、合併遠端、去重、推送。
+
+`.gitattributes` 把詞庫標為 `merge=union`，兩台各自新增不同的詞會**兩邊都保留**而不是產生衝突；接著的去重步驟會移除重複行並**保留原始順序**，因為使用者詞的排序會影響候選字優先度。
+
+比起 iCloud，git 這條路多了**版本歷史**——詞庫被誤改時可以回溯到任何一次同步。
+
+紀錄檔：`~/Library/Logs/BroccoliSmartInput/dict-sync.log`
+
+### 為什麼不再用 Google Apps Script
+
+輸入法無法向 Google 驗證身分，所以那個 Web App 部署必須開放匿名存取。等於只要知道部署 URL 就能覆寫詞庫（`setContent()` 是整檔覆寫），而同步流程是「下載→合併進本機→回寫」，一次污染會擴散到所有機器並持續存在。該端點與相關 Drive 檔案已於 2026-09-02 全數移除。
 
 ## Drive Patch / 多台電腦同步（已停用，僅供參考）
 
