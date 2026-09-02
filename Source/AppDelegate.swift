@@ -846,12 +846,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         checkForUpdate(forced: false)
     }
 
+    // Broccoli SmartInput does not use the upstream McBopomofo update feed,
+    // so the check is switched off here rather than repointed. Flipping this
+    // to true restores the original behaviour.
+    private static let upstreamUpdateCheckEnabled = false
+
     @objc(checkForUpdateForced:)
     func checkForUpdate(forced: Bool) {
-        // Disabled for Broccoli SmartInput: the upstream update feed would
-        // offer the official McBopomofo package. Use the GitHub release menu
-        // items instead.
-        return
+        guard Self.upstreamUpdateCheckEnabled else {
+            return
+        }
         if checkTask != nil {
             // busy
             return
