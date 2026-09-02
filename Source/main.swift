@@ -115,11 +115,73 @@ private func install() -> Int32 {
     return 0
 }
 
+private func patch() -> Int32 {
+    guard CommandLine.arguments.count > 2 else {
+        print("Usage: McBopomofo patch sync|check-release|download-release|open-release|diagnostics|reset-diagnostics")
+        return 2
+    }
+
+    Preferences.populateDefaults()
+
+    do {
+        switch CommandLine.arguments[2] {
+        case "sync":
+            let report = try BroccoliPatchManager.syncDictionaries()
+            print("Synced patch dictionaries:")
+            for file in report.updatedFiles {
+                print("updated \(file)")
+            }
+            for file in report.uploadedFiles {
+                print("uploaded \(file)")
+            }
+            for file in report.backupFiles {
+                print("backup \(file)")
+            }
+            return 0
+        case "diagnostics":
+            print(BroccoliDiagnostics.readLog(), terminator: "")
+            return 0
+        case "reset-diagnostics":
+            BroccoliDiagnostics.reset()
+            print("Diagnostics log cleared.")
+            return 0
+        case "check-release":
+            let release = try BroccoliPatchManager.latestRelease()
+            print("Latest release: \(release.tagName)")
+            print(release.htmlURL.absoluteString)
+            if let assetName = release.assetName {
+                print("Asset: \(assetName)")
+            }
+            return 0
+        case "download-release":
+            let destination = try BroccoliPatchManager.downloadLatestReleaseAsset()
+            print("Downloaded latest release asset:")
+            print(destination.path)
+            NSWorkspace.shared.open(destination)
+            return 0
+        case "open-release":
+            NSWorkspace.shared.open(BroccoliPatchManager.releasePageURL)
+            return 0
+        default:
+            print("Unknown patch command: \(CommandLine.arguments[2])")
+            print("Usage: McBopomofo patch sync|check-release|download-release|open-release|diagnostics|reset-diagnostics")
+            return 2
+        }
+    } catch {
+        print("Patch failed: \(error.localizedDescription)")
+        return 1
+    }
+}
+
 let kConnectionName = "McBopomofo_1_Connection"
 
 if CommandLine.arguments.count > 1 {
     if CommandLine.arguments[1] == "install" {
         let exitCode = install()
+        exit(exitCode)
+    }
+    if CommandLine.arguments[1] == "patch" {
+        let exitCode = patch()
         exit(exitCode)
     }
 }

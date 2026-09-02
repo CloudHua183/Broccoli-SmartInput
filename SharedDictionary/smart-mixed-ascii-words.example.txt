@@ -1,0 +1,11 @@
+# Broccoli SmartInput smart mixed ASCII word allowlist example.
+#
+# Keep your real smart-mixed-ascii-words.txt outside this public GitHub repo.
+# Put the private file in Google Drive and configure:
+# ~/Library/Application Support/McBopomofo/patch-source.json
+#
+# One word per line. A-Z, a-z, and 0-9 only.
+meeting
+chrome
+openai
+chatgpt

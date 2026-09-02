@@ -39,6 +39,26 @@ private let kMinKeyLabelSize: CGFloat = 10
 
 internal var gCurrentCandidateController: CandidateController?
 
+private let kSmartUserPhraseNumberKeyLengths: [UInt16: Int] = [
+    18: 1,
+    19: 2,
+    20: 3,
+    21: 4,
+    23: 5,
+    22: 6,
+    26: 7,
+    28: 8,
+    25: 9,
+    29: 10,
+]
+
+private struct SmartUserPhraseShortcutTarget: Equatable {
+    let phrase: String
+    let reading: String
+    let length: Int
+    let cursorLocation: Int
+}
+
 extension CandidateController {
     static let horizontal = HorizontalCandidateController()
     static let vertical = VerticalCandidateController()
@@ -54,6 +74,7 @@ class McBopomofoInputMethodController: IMKInputController {
     var currentClient: Any?
     var keyHandler: KeyHandler = KeyHandler()
     var state: InputState = InputState.Empty()
+    private var lastSmartUserPhraseShortcutTarget: SmartUserPhraseShortcutTarget?
 
     // Share the stored issues, so a set of issues is shown as notification only once.
     static var latestUserFileIssues: [String] = []
@@ -66,6 +87,8 @@ class McBopomofoInputMethodController: IMKInputController {
     }
 
     override func menu() -> NSMenu! {
+        BroccoliDiagnostics.log(
+            "menu() called; host=\(clientBundleIdentifier(currentClient)); inputMode=\(keyHandler.inputMode.rawValue); latestIssues=\(Self.latestUserFileIssues.count)")
         let menu = NSMenu(title: "Input Method Menu")
 
         let chineseConversionItem = menu.addItem(
@@ -139,6 +162,9 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: NSLocalizedString("Reload User Phrases", comment: ""),
             action: #selector(reloadUserPhrases(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "同步雲端詞庫",
+            action: #selector(syncBroccoliPatchDictionaries(_:)), keyEquivalent: "")
 
         if !McBopomofoInputMethodController.latestUserFileIssues.isEmpty {
             // Setting menuItem.image does not work in input method menus even on macOS 26,
@@ -158,6 +184,12 @@ class McBopomofoInputMethodController: IMKInputController {
             withTitle: NSLocalizedString("Check for Updates…", comment: ""),
             action: #selector(checkForUpdate(_:)), keyEquivalent: "")
         menu.addItem(
+            withTitle: "開啟 GitHub 最新 Release…",
+            action: #selector(openBroccoliLatestRelease(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "下載 GitHub 最新 Release…",
+            action: #selector(downloadBroccoliLatestRelease(_:)), keyEquivalent: "")
+        menu.addItem(
             withTitle: NSLocalizedString("About Broccoli SmartInput…", comment: ""),
             action: #selector(showAbout(_:)), keyEquivalent: "")
         return menu
@@ -167,6 +199,8 @@ class McBopomofoInputMethodController: IMKInputController {
 
     override func activateServer(_ client: Any!) {
         UserDefaults.standard.synchronize()
+        BroccoliDiagnostics.log(
+            "activateServer called; host=\(clientBundleIdentifier(client)); inputMode=\(keyHandler.inputMode.rawValue)")
 
         // Override the keyboard layout. Use US if not set.
         (client as? IMKTextInput)?.overrideKeyboard(
@@ -181,6 +215,8 @@ class McBopomofoInputMethodController: IMKInputController {
     }
 
     override func deactivateServer(_ client: Any!) {
+        BroccoliDiagnostics.log(
+            "deactivateServer called; host=\(clientBundleIdentifier(client)); state=\(type(of: state))")
         currentClient = nil
         keyHandler.clear()
         self.handle(state: .Deactivated(), client: client)
@@ -188,6 +224,8 @@ class McBopomofoInputMethodController: IMKInputController {
 
     override func setValue(_ value: Any!, forTag tag: Int, client: Any!) {
         let newInputMode = InputMode(rawValue: value as? String ?? InputMode.bopomofo.rawValue)
+        BroccoliDiagnostics.log(
+            "setValue called; host=\(clientBundleIdentifier(client)); tag=\(tag); oldMode=\(keyHandler.inputMode.rawValue); newMode=\(newInputMode.rawValue)")
         LanguageModelManager.loadDataModel(newInputMode)
         if keyHandler.inputMode != newInputMode {
             UserDefaults.standard.synchronize()
@@ -201,6 +239,10 @@ class McBopomofoInputMethodController: IMKInputController {
 
         // Since setValue is called after activateServer, show user file issues here, if any.
         checkUserFileIssues()
+    }
+
+    private func clientBundleIdentifier(_ client: Any?) -> String {
+        (client as? IMKTextInput)?.bundleIdentifier() ?? "unknown"
     }
 
     // MARK: - IMKServerInput protocol methods
@@ -255,6 +297,10 @@ class McBopomofoInputMethodController: IMKInputController {
             }
             (client as? IMKTextInput)?.overrideKeyboard(withKeyboardNamed: basisKeyboardLayoutID)
             return false
+        }
+
+        if handleSmartUserPhraseShortcut(event, client: client) {
+            return true
         }
 
         var textFrame = NSRect.zero
@@ -345,6 +391,18 @@ class McBopomofoInputMethodController: IMKInputController {
         (NSApp.delegate as? AppDelegate)?.openPhraseReplacementMcBopomofo(sender)
     }
 
+    @objc func syncBroccoliPatchDictionaries(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.syncBroccoliPatchDictionaries(sender)
+    }
+
+    @objc func openBroccoliLatestRelease(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.openBroccoliLatestRelease(sender)
+    }
+
+    @objc func downloadBroccoliLatestRelease(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.downloadBroccoliLatestRelease(sender)
+    }
+
     @objc func reloadUserPhrases(_ sender: Any?) {
         LanguageModelManager.loadUserPhrases(
             enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
@@ -384,6 +442,162 @@ class McBopomofoInputMethodController: IMKInputController {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+}
+
+// MARK: - Smart User Phrase Shortcut
+
+extension McBopomofoInputMethodController {
+    private enum SmartUserPhraseTargetResult {
+        case success(SmartUserPhraseShortcutTarget)
+        case failure(String)
+    }
+
+    private func handleSmartUserPhraseShortcut(_ event: NSEvent, client: Any!) -> Bool {
+        guard event.type == .keyDown,
+              event.modifierFlags.contains(.control),
+              event.modifierFlags.contains(.shift),
+              !event.modifierFlags.contains(.command),
+              !event.modifierFlags.contains(.option),
+              let length = kSmartUserPhraseNumberKeyLengths[event.keyCode]
+        else {
+            return false
+        }
+
+        let target: SmartUserPhraseShortcutTarget
+        switch smartUserPhraseTarget(length: length, client: client) {
+        case .success(let successTarget):
+            target = successTarget
+        case .failure(let message):
+            notifySmartUserPhraseFailure(message)
+            return true
+        }
+
+        let phraseToWrite = "\(target.phrase) \(target.reading)"
+        if lastSmartUserPhraseShortcutTarget == target {
+            let result = LanguageModelManager.deleteUserPhrase(phraseToWrite)
+            LanguageModelManager.loadUserPhrases(
+                enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+            lastSmartUserPhraseShortcutTarget = nil
+            NotifierController.notify(
+                message: result
+                    ? "\(target.phrase)字詞已從使用者詞庫中刪除"
+                    : "\(target.phrase)字詞不在使用者詞庫中")
+            return true
+        }
+
+        let result = LanguageModelManager.writeUserPhrase(phraseToWrite)
+        if result {
+            LanguageModelManager.loadUserPhrases(
+                enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+            lastSmartUserPhraseShortcutTarget = target
+            NotifierController.notify(message: "已將\(target.phrase)字詞加入使用者詞庫中")
+        } else {
+            lastSmartUserPhraseShortcutTarget = nil
+            if LanguageModelManager.checkIfExist(userPhrase: target.phrase, key: target.reading) {
+                notifySmartUserPhraseFailure("\(target.phrase)字詞已存在於使用者詞庫中")
+            } else {
+                notifySmartUserPhraseFailure("無法將\(target.phrase)加入使用者詞庫：詞庫檔案無法寫入")
+            }
+        }
+        return true
+    }
+
+    private func notifySmartUserPhraseFailure(_ message: String) {
+        NotifierController.notify(message: message, duration: 10)
+    }
+
+    private func smartUserPhraseTarget(length: Int, client: Any!) -> SmartUserPhraseTargetResult {
+        guard let cursorText = textBeforeCursor(length: length, client: client) else {
+            return .failure("無法加入使用者詞庫：無法取得游標前\(length)個字")
+        }
+
+        guard cursorText.text.isEmpty == false else {
+            return .failure("無法加入使用者詞庫：游標前沒有可加入的文字")
+        }
+
+        guard let reading = smartUserPhraseReading(for: cursorText.text),
+              reading.isEmpty == false
+        else {
+            return .failure("無法加入\(cursorText.text)：無法產生詞庫讀音")
+        }
+
+        guard LanguageModelManager.checkIfUserLanguageModelFilesExist() else {
+            return .failure("無法加入\(cursorText.text)：使用者詞庫檔案不存在或無法存取")
+        }
+
+        guard FileManager.default.isWritableFile(atPath: LanguageModelManager.userPhrasesDataPathMcBopomofo) else {
+            return .failure("無法加入\(cursorText.text)：使用者詞庫檔案無法寫入")
+        }
+
+        return .success(SmartUserPhraseShortcutTarget(
+            phrase: cursorText.text,
+            reading: reading,
+            length: length,
+            cursorLocation: cursorText.cursorLocation))
+    }
+
+    private func textBeforeCursor(length: Int, client: Any!) -> (text: String, cursorLocation: Int)? {
+        if let state = state as? InputState.Inputting {
+            guard let text = suffixBeforeCursor(in: state.composingBuffer, cursorIndex: Int(state.cursorIndex), length: length) else {
+                return nil
+            }
+            return (text, Int(state.cursorIndex))
+        }
+
+        guard let textInput = client as? IMKTextInput else {
+            return nil
+        }
+
+        let selectedRange = textInput.selectedRange()
+        guard selectedRange.location != NSNotFound, selectedRange.location > 0 else {
+            return nil
+        }
+
+        let queryLength = min(length, selectedRange.location)
+        let queryRange = NSRange(location: selectedRange.location - queryLength, length: queryLength)
+        guard let text = textInput.attributedSubstring(from: queryRange)?.string else {
+            return nil
+        }
+        return (text, selectedRange.location)
+    }
+
+    private func suffixBeforeCursor(in text: String, cursorIndex: Int, length: Int) -> String? {
+        guard cursorIndex > 0, length > 0 else {
+            return nil
+        }
+
+        let nsText = text as NSString
+        let clampedCursorIndex = min(cursorIndex, nsText.length)
+        let queryLength = min(length, clampedCursorIndex)
+        return nsText.substring(with: NSRange(location: clampedCursorIndex - queryLength, length: queryLength))
+    }
+
+    private func smartUserPhraseReading(for phrase: String) -> String? {
+        if let asciiReading = asciiReading(for: phrase) {
+            return asciiReading
+        }
+
+        let reading = ServiceProvider().extractReading(from: phrase)
+        return reading.contains("？") ? nil : reading
+    }
+
+    private func asciiReading(for phrase: String) -> String? {
+        var readings: [String] = []
+        for scalar in phrase.unicodeScalars {
+            guard scalar.isASCII else {
+                return nil
+            }
+
+            if CharacterSet.uppercaseLetters.contains(scalar) || CharacterSet.lowercaseLetters.contains(scalar) {
+                readings.append("_letter_\(String(scalar).uppercased())")
+            } else if CharacterSet.decimalDigits.contains(scalar) {
+                readings.append("_number_\(scalar)")
+            } else {
+                return nil
+            }
+        }
+        return readings.isEmpty ? nil : readings.joined(separator: "-")
+    }
 }
 
 // MARK: - State Handling

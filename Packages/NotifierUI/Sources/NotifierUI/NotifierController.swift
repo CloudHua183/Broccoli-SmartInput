@@ -63,6 +63,7 @@ public class NotifierController: NSWindowController, NotifierWindowDelegate {
         }
     }
     private var shouldStay: Bool = false
+    private var duration: TimeInterval?
     private var backgroundColor: NSColor = .black {
         didSet {
             self.window?.backgroundColor = backgroundColor
@@ -84,6 +85,13 @@ public class NotifierController: NSWindowController, NotifierWindowDelegate {
         let controller = NotifierController()
         controller.message = message
         controller.shouldStay = stay
+        controller.show()
+    }
+
+    @objc public static func notify(message: String, duration: TimeInterval) {
+        let controller = NotifierController()
+        controller.message = message
+        controller.duration = duration
         controller.show()
     }
 
@@ -161,7 +169,7 @@ public class NotifierController: NSWindowController, NotifierWindowDelegate {
         setStartLocation()
         moveIn()
         NotifierController.increaseInstanceCount()
-        waitTimer = Timer.scheduledTimer(timeInterval: shouldStay ? 5 : 1, target: self, selector: #selector(fadeOut), userInfo: nil, repeats: false)
+        waitTimer = Timer.scheduledTimer(timeInterval: duration ?? (shouldStay ? 5 : 1), target: self, selector: #selector(fadeOut), userInfo: nil, repeats: false)
     }
 
     @objc private func doFadeOut(_ timer: Timer) {
