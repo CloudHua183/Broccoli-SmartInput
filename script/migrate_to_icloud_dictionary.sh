@@ -81,6 +81,17 @@ if [[ -f "$PATCH_SOURCE" ]]; then
   echo "==> Retired $PATCH_SOURCE -> patch-source.json.retired"
 fi
 
+# Earlier builds wrote diagnostics.log into the dictionary folder, which now
+# means into iCloud Drive. Move any stray copy into ~/Library/Logs, where the
+# current build writes it and where nothing syncs it.
+LOG_DIR="$HOME/Library/Logs/BroccoliSmartInput"
+STRAY_LOG="$TARGET_DIR/diagnostics.log"
+if [[ -f "$STRAY_LOG" ]]; then
+  /bin/mkdir -p "$LOG_DIR"
+  /bin/mv "$STRAY_LOG" "$LOG_DIR/diagnostics.$(/bin/date +%Y%m%d-%H%M%S).log"
+  echo "==> Moved stray diagnostics.log out of iCloud into $LOG_DIR"
+fi
+
 echo "==> Preferences now:"
 echo "    UseCustomUserPhraseLocation = $(/usr/bin/defaults read "$DOMAIN" UseCustomUserPhraseLocation)"
 echo "    CustomUserPhraseLocation    = $(/usr/bin/defaults read "$DOMAIN" CustomUserPhraseLocation)"

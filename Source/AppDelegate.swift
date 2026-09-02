@@ -47,9 +47,22 @@ private let kDefaultBroccoliPatchReleasePageURL =
 enum BroccoliDiagnostics {
     static let logFileName = "diagnostics.log"
 
+    // Deliberately not LanguageModelManager.dataFolderPath. That folder is now
+    // an iCloud Drive folder, and the log would be synced to every machine and
+    // to the cloud, where it does not belong: it grows without bound and it
+    // records the bundle identifier of every application the user types in.
+    // ~/Library/Logs is the conventional place for this and is never synced.
+    static var logFolderURL: URL {
+        let libraryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+                .appendingPathComponent("Library", isDirectory: true)
+        return libraryURL
+            .appendingPathComponent("Logs", isDirectory: true)
+            .appendingPathComponent("BroccoliSmartInput", isDirectory: true)
+    }
+
     static var logFileURL: URL {
-        let basePath = LanguageModelManager.dataFolderPath
-        return URL(fileURLWithPath: basePath, isDirectory: true).appendingPathComponent(logFileName)
+        logFolderURL.appendingPathComponent(logFileName)
     }
 
     static func log(_ message: String, function: String = #function) {
