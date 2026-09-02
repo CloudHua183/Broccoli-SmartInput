@@ -25,12 +25,30 @@ import Cocoa
 import InputMethodKit
 import InputSourceHelper
 
+private func retry<T>(attempts: Int = 10, delay: TimeInterval = 0.25, action: () -> T?) -> T? {
+    for attempt in 0..<attempts {
+        if let result = action() {
+            return result
+        }
+        if attempt + 1 < attempts {
+            Thread.sleep(forTimeInterval: delay)
+        }
+    }
+    return nil
+}
+
 private func install() -> Int32 {
     guard let bundleID = Bundle.main.bundleIdentifier else {
         return -1
     }
+    let options = Set(CommandLine.arguments.dropFirst(2))
+    let shouldEnableAll = options.contains("--all")
+    let shouldSelect = options.contains("--select")
+    let bopomofoModeID = "\(bundleID).Bopomofo"
     let bundleUrl = Bundle.main.bundleURL
-    var maybeInputSource = InputSourceHelper.inputSource(for: bundleID)
+    var maybeInputSource = retry {
+        InputSourceHelper.inputSource(for: bundleID)
+    }
 
     if maybeInputSource == nil {
         NSLog("Registering input source \(bundleID) at \(bundleUrl.absoluteString)");
@@ -42,7 +60,9 @@ private func install() -> Int32 {
             return -1
         }
 
-        maybeInputSource = InputSourceHelper.inputSource(for: bundleID)
+        maybeInputSource = retry {
+            InputSourceHelper.inputSource(for: bundleID)
+        }
     }
 
     guard let inputSource = maybeInputSource else {
@@ -63,9 +83,34 @@ private func install() -> Int32 {
         }
     }
 
-    if CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "--all" {
+    if shouldEnableAll {
         let enabled = InputSourceHelper.enableAllInputMode(for: bundleID)
         NSLog(enabled ? "All input sources enabled for \(bundleID)" : "Cannot enable all input sources for \(bundleID), but this is ignored")
+    }
+    if shouldSelect {
+        guard let inputMode = retry(action: {
+            InputSourceHelper.inputMode(bopomofoModeID, for: bundleID)
+        }) else {
+            NSLog("Fatal error: Cannot find input mode \(bopomofoModeID) for \(bundleID).")
+            return -1
+        }
+
+        if !InputSourceHelper.inputSourceEnabled(for: inputMode) {
+            let enabled = InputSourceHelper.enable(inputSource: inputMode)
+            if !enabled {
+                NSLog("Fatal error: Cannot enable input mode \(bopomofoModeID).")
+                return -1
+            }
+        }
+
+        let selected = retry(action: {
+            InputSourceHelper.select(inputSource: inputMode) ? true : nil
+        }) ?? false
+        if !selected {
+            NSLog("Fatal error: Cannot select input mode \(bopomofoModeID).")
+            return -1
+        }
+        NSLog("Selected input mode \(bopomofoModeID) for \(bundleID).")
     }
     return 0
 }
