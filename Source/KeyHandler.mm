@@ -30,6 +30,7 @@
 #import "UserOverrideModel.h"
 #import "reading_grid.h"
 
+#include <cctype>
 #import <algorithm>
 #import <optional>
 #import <sstream>
@@ -64,6 +65,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     Formosa::Gramambular2::ReadingGrid::WalkResult _latestWalk;
 
     NSString *_inputMode;
+    BOOL _smartMixedASCIISequenceActive;
+    std::string _smartMixedASCIISequence;
+    std::optional<char> _smartMixedASCIIPendingStartChar;
+    std::string _smartMixedPendingKeyRun;
+    NSString *_smartMixedArrowShortcutPendingInput;
 }
 
 @synthesize delegate = _delegate;
@@ -135,6 +141,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         _grid->setReadingSeparator("-");
 
         _inputMode = InputModeBopomofo;
+        _smartMixedASCIISequenceActive = NO;
+        _smartMixedASCIISequence.clear();
+        _smartMixedASCIIPendingStartChar = std::nullopt;
+        _smartMixedPendingKeyRun.clear();
+        _smartMixedArrowShortcutPendingInput = nil;
     }
     return self;
 }
@@ -168,6 +179,29 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _languageModel->setExternalConverterEnabled(Preferences.chineseConversionStyle == ChineseConversionStyleModel);
 }
 
+- (void)preserveUnselectedValuesInCurrentNodeAt:(size_t)cursor
+{
+    size_t cursorPastNode = 0;
+    auto nodeIter = _latestWalk.findNodeAt(cursor, &cursorPastNode);
+    if (nodeIter == _latestWalk.nodes.cend() || *nodeIter == nullptr) {
+        return;
+    }
+
+    Formosa::Gramambular2::ReadingGrid::NodePtr node = *nodeIter;
+    std::vector<std::string> values = McBopomofo::Split(node->value());
+    if (values.size() != node->spanningLength()) {
+        return;
+    }
+
+    size_t nodeStart = cursorPastNode - node->spanningLength();
+    const auto& readings = _grid->readings();
+    for (size_t offset = 0; offset < node->spanningLength(); ++offset) {
+        Formosa::Gramambular2::ReadingGrid::Candidate candidate(
+            readings[nodeStart + offset], values[offset]);
+        _grid->overrideCandidate(nodeStart + offset, candidate);
+    }
+}
+
 - (void)fixNodeWithReading:(NSString *)reading value:(NSString *)value originalCursorIndex:(size_t)originalCursorIndex useMoveCursorAfterSelectionSetting:(BOOL)flag
 {
     // Since WalkResult makes references to the current nodes, we must make a
@@ -179,6 +213,11 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
     size_t actualCursor = self.actualCandidateCursorIndex;
     Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading.UTF8String, value.UTF8String);
+
+    // A candidate may cover multiple readings. Split its current result into
+    // one-reading overrides first, so manually replacing A cannot re-walk and
+    // silently replace the remaining B values in the same candidate.
+    [self preserveUnselectedValuesInCurrentNodeAt:actualCursor];
     if (!_grid->overrideCandidate(actualCursor, candidate)) {
         return;
     }
@@ -300,6 +339,148 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _bpmfReadingBuffer->clear();
     _grid->clear();
     _latestWalk = Formosa::Gramambular2::ReadingGrid::WalkResult {};
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
+    _smartMixedArrowShortcutPendingInput = nil;
+}
+
+- (void)_resetSmartMixedASCIIState
+{
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
+    _smartMixedArrowShortcutPendingInput = nil;
+}
+
+- (std::string)_lowercaseASCIIString:(const std::string&)value
+{
+    std::string lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return lower;
+}
+
+- (BOOL)_smartMixedASCIIKnownWordHasPrefix:(const std::string&)prefix
+{
+    NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
+    return [LanguageModelManager smartMixedASCIIPhraseHasPrefix:prefixString];
+}
+
+- (BOOL)_smartMixedASCIIKnownWordMatches:(const std::string&)phrase
+{
+    NSString *phraseString = [[NSString alloc] initWithUTF8String:phrase.c_str()];
+    return [LanguageModelManager smartMixedASCIIPhraseMatches:phraseString];
+}
+
+- (BOOL)_smartMixedSystemDictionaryWordHasPrefix:(const std::string&)prefix
+{
+    NSString *prefixString = [[NSString alloc] initWithUTF8String:prefix.c_str()];
+    return [LanguageModelManager smartMixedSystemDictionaryASCIIWordHasPrefix:prefixString];
+}
+
+- (BOOL)_smartMixedSystemDictionaryWordMatches:(const std::string&)phrase
+{
+    NSString *phraseString = [[NSString alloc] initWithUTF8String:phrase.c_str()];
+    return [LanguageModelManager smartMixedSystemDictionaryASCIIWordMatches:phraseString];
+}
+
+- (BOOL)_smartMixedASCIIStringHasVowel:(const std::string&)value
+{
+    for (char tokenChar : value) {
+        switch (std::tolower(static_cast<unsigned char>(tokenChar))) {
+        case 'a':
+        case 'e':
+        case 'i':
+        case 'o':
+        case 'u':
+        case 'y':
+            return YES;
+        default:
+            break;
+        }
+    }
+    return NO;
+}
+
+- (BOOL)_smartMixedPendingKeyRunShouldConvertToASCII
+{
+    if (_smartMixedPendingKeyRun.length() >= 3 && [self _smartMixedASCIIKnownWordMatches:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    if ([self _smartMixedSystemDictionaryWordHasPrefix:_smartMixedPendingKeyRun] && _smartMixedPendingKeyRun.length() < 6) {
+        return NO;
+    }
+    if (_smartMixedPendingKeyRun.length() >= 6 && [self _smartMixedSystemDictionaryWordMatches:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    if ([self _smartMixedSystemDictionaryWordHasPrefix:_smartMixedPendingKeyRun]) {
+        return NO;
+    }
+    if ([self _smartMixedASCIIKnownWordHasPrefix:_smartMixedPendingKeyRun]) {
+        return NO;
+    }
+    if (_smartMixedPendingKeyRun.length() >= 6 && [self _smartMixedASCIIStringHasVowel:_smartMixedPendingKeyRun]) {
+        return YES;
+    }
+    return NO;
+}
+
+- (BOOL)_convertSmartMixedPendingKeyRunToASCIIWithStateCallback:(void (^)(InputState *))stateCallback
+{
+    if (_smartMixedPendingKeyRun.empty()) {
+        return NO;
+    }
+
+    std::string run = _smartMixedPendingKeyRun;
+    _bpmfReadingBuffer->clear();
+    _smartMixedASCIISequenceActive = NO;
+    _smartMixedASCIISequence.clear();
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    _smartMixedPendingKeyRun.clear();
+
+    for (char tokenChar : run) {
+        if (![self _insertLiteralASCIIChar:tokenChar stateCallback:stateCallback]) {
+            [self _resetSmartMixedASCIIState];
+            return NO;
+        }
+    }
+    _smartMixedASCIISequenceActive = YES;
+    _smartMixedASCIISequence = run;
+    return YES;
+}
+
+- (BOOL)_smartMixedASCIISequenceCanContinueWithChar:(char)ch
+{
+    if (_smartMixedASCIISequence.empty()) {
+        return NO;
+    }
+
+    std::string next = _smartMixedASCIISequence + std::string(1, ch);
+    if ([self _smartMixedASCIIKnownWordHasPrefix:next]) {
+        return YES;
+    }
+
+    BOOL currentIsUppercaseAcronym = YES;
+    BOOL currentHasDigit = NO;
+    for (char tokenChar : _smartMixedASCIISequence) {
+        unsigned char unsignedTokenChar = static_cast<unsigned char>(tokenChar);
+        if (isdigit(unsignedTokenChar)) {
+            currentHasDigit = YES;
+        }
+        if (isalpha(unsignedTokenChar) && !isupper(unsignedTokenChar)) {
+            currentIsUppercaseAcronym = NO;
+        }
+    }
+
+    if (isdigit(static_cast<unsigned char>(ch))) {
+        return currentHasDigit || currentIsUppercaseAcronym;
+    }
+
+    return currentIsUppercaseAcronym && isupper(ch);
 }
 
 - (void)handleForceCommitWithStateCallback:(void (^)(InputState *))stateCallback
@@ -323,6 +504,158 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     NSString *keyboardLayoutName = Preferences.keyboardLayoutName;
     std::string layout = std::string(keyboardLayoutName.UTF8String) + "_";
     return layout;
+}
+
+- (std::optional<std::string>)_literalASCIIReadingForChar:(char)ch
+{
+    if (isalpha(ch)) {
+        char upper = static_cast<char>(toupper(ch));
+        return std::string("_letter_") + std::string(1, upper);
+    }
+    if (isdigit(ch)) {
+        return std::string("_numpad_") + std::string(1, ch);
+    }
+    return std::nullopt;
+}
+
+- (BOOL)_insertLiteralASCIIChar:(char)ch
+                  stateCallback:(void (^)(InputState *))stateCallback
+{
+    std::optional<std::string> reading = [self _literalASCIIReadingForChar:ch];
+    if (!reading.has_value()) {
+        return NO;
+    }
+
+    if (!_grid->insertReading(reading.value())) {
+        return NO;
+    }
+
+    Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading.value(), std::string(1, ch));
+    _grid->overrideCandidate(_grid->cursor() - 1, candidate);
+    [self _walk];
+
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    stateCallback(inputting);
+    return YES;
+}
+
+- (BOOL)_insertSmartMixedPunctuationValue:(NSString *)value
+                                  reading:(const std::string&)reading
+                            stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (value.length == 0) {
+        return NO;
+    }
+
+    if (!_grid->insertReading(reading)) {
+        return NO;
+    }
+
+    std::string candidateValue(value.UTF8String);
+    Formosa::Gramambular2::ReadingGrid::Candidate candidate(reading, candidateValue);
+    if (!_grid->overrideCandidate(_grid->cursor() - 1, candidate, Formosa::Gramambular2::ReadingGrid::Node::OverrideType::kOverrideValueWithHighScore)) {
+        _grid->deleteReadingBeforeCursor();
+        [self _walk];
+        return NO;
+    }
+
+    [self _walk];
+    InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
+    stateCallback(inputting);
+    return YES;
+}
+
+- (BOOL)_startSmartMixedASCIISequenceWithChar:(char)ch
+                                stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (![self _insertLiteralASCIIChar:ch stateCallback:stateCallback]) {
+        return NO;
+    }
+    _smartMixedASCIISequenceActive = YES;
+    _smartMixedASCIISequence = std::string(1, ch);
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    return YES;
+}
+
+- (BOOL)_continueSmartMixedASCIISequenceWithChar:(char)ch
+                                   stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (![self _insertLiteralASCIIChar:ch stateCallback:stateCallback]) {
+        return NO;
+    }
+    _smartMixedASCIISequence += std::string(1, ch);
+    _smartMixedASCIIPendingStartChar = std::nullopt;
+    return YES;
+}
+
+- (void)_resetSmartMixedArrowShortcutState
+{
+    _smartMixedArrowShortcutPendingInput = nil;
+}
+
+- (BOOL)_handleSmartMixedArrowShortcutWithState:(InputState *)state
+                                          input:(KeyHandlerInput *)input
+                                  stateCallback:(void (^)(InputState *))stateCallback
+                                  errorCallback:(void (^)(void))errorCallback
+{
+    BOOL shouldConsiderShiftArrowShortcut =
+        input.isShiftHold && !input.isCommandHold && !input.isOptionHold && !input.isControlHold;
+    if (!shouldConsiderShiftArrowShortcut) {
+        if (_smartMixedArrowShortcutPendingInput != nil) {
+            NSString *pending = _smartMixedArrowShortcutPendingInput;
+            [self _resetSmartMixedArrowShortcutState];
+            [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+            return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
+        }
+        return NO;
+    }
+
+    BOOL isMinusKey = input.keyCode == 27;
+    BOOL isPeriodKey = input.keyCode == 47;
+    BOOL isCommaKey = input.keyCode == 43;
+    if (!isMinusKey && !isPeriodKey && !isCommaKey) {
+        if (_smartMixedArrowShortcutPendingInput != nil) {
+            NSString *pending = _smartMixedArrowShortcutPendingInput;
+            [self _resetSmartMixedArrowShortcutState];
+            [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+            return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
+        }
+        return NO;
+    }
+
+    NSString *inputText = input.inputText;
+    if (inputText.length == 0) {
+        inputText = input.inputTextIgnoringModifiers;
+    }
+
+    if (inputText.length == 0) {
+        inputText = isMinusKey ? @"-" : @".";
+    }
+
+    if (_smartMixedArrowShortcutPendingInput != nil) {
+        NSString *pending = _smartMixedArrowShortcutPendingInput;
+        if (isPeriodKey || isCommaKey) {
+            [self _resetSmartMixedArrowShortcutState];
+            NSString *arrow = isCommaKey ? @"←" : @"→";
+            if ([state isKindOfClass:[InputStateNotEmpty class]] || _grid->length() > 0 || !_bpmfReadingBuffer->isEmpty()) {
+                return [self _insertSmartMixedPunctuationValue:arrow reading:"_punctuation_list" stateCallback:stateCallback];
+            }
+            stateCallback([[InputStateCommitting alloc] initWithPoppedText:arrow]);
+            stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
+            return YES;
+        }
+
+        [self _resetSmartMixedArrowShortcutState];
+        [self _insertSmartMixedPunctuationValue:pending reading:"_punctuation__" stateCallback:stateCallback];
+        return [self handleInput:input state:[self buildInputtingState] stateCallback:stateCallback errorCallback:errorCallback];
+    }
+
+    if (input.keyCode == 27) {
+        _smartMixedArrowShortcutPendingInput = inputText;
+        return YES;
+    }
+
+    return NO;
 }
 
 - (BOOL)handleInput:(KeyHandlerInput *)input state:(InputState *)inState stateCallback:(void (^)(InputState *))stateCallback errorCallback:(void (^)(void))errorCallback
@@ -451,6 +784,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         return [self _handleCandidateState:state input:input stateCallback:stateCallback errorCallback:errorCallback];
     }
 
+    if ([self _handleSmartMixedArrowShortcutWithState:state input:input stateCallback:stateCallback errorCallback:errorCallback]) {
+        return YES;
+    }
+
     // MARK: Handle Marking
     if ([state isKindOfClass:[InputStateMarking class]]) {
         InputStateMarking *marking = (InputStateMarking *)state;
@@ -464,6 +801,30 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     BOOL keyConsumedByReading = NO;
     BOOL skipBpmfHandling = input.isReservedKey || input.isControlHold;
 
+    if (Preferences.smartMixedInputEnabled && !skipBpmfHandling && !input.isCommandHold && !input.isOptionHold && !input.isNumericPad && charCode < 0x80) {
+        char ch = static_cast<char>(charCode);
+        BOOL isLiteralASCII = isalpha(ch) || isdigit(ch);
+        BOOL canContinueSmartASCII = _smartMixedASCIISequenceActive && isLiteralASCII && [self _smartMixedASCIISequenceCanContinueWithChar:ch];
+        BOOL canStartSmartASCII = !_smartMixedASCIISequenceActive && isupper(ch) && _bpmfReadingBuffer->isEmpty() && [state isKindOfClass:[InputStateNotEmpty class]];
+
+        if (canContinueSmartASCII) {
+            if ([self _continueSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
+                return YES;
+            }
+        } else if (_smartMixedASCIISequenceActive) {
+            [self _resetSmartMixedASCIIState];
+        }
+
+        if (canStartSmartASCII) {
+            _smartMixedPendingKeyRun.clear();
+            if ([self _startSmartMixedASCIISequenceWithChar:ch stateCallback:stateCallback]) {
+                return YES;
+            }
+        } else if (!isLiteralASCII) {
+            [self _resetSmartMixedASCIIState];
+        }
+    }
+
     // MARK: Handle BPMF Keys
 
     // see if it's valid BPMF reading
@@ -471,14 +832,25 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     if (!skipBpmfHandling && isValidKey) {
         _bpmfReadingBuffer->combineKey((char)charCode);
         keyConsumedByReading = YES;
+        _smartMixedASCIIPendingStartChar = std::nullopt;
+
+        if (Preferences.smartMixedInputEnabled && !_smartMixedASCIISequenceActive && isalpha(static_cast<unsigned char>(charCode))) {
+            _smartMixedPendingKeyRun += std::string(1, static_cast<char>(charCode));
+        } else {
+            _smartMixedPendingKeyRun.clear();
+        }
 
         // if we have a tone marker, we have to insert the reading to the
         // builder in other words, if we don't have a tone marker, we just
         // update the composing buffer
         if (!_bpmfReadingBuffer->hasToneMarker()) {
+            if (Preferences.smartMixedInputEnabled && [self _smartMixedPendingKeyRunShouldConvertToASCII]) {
+                return [self _convertSmartMixedPendingKeyRunToASCIIWithStateCallback:stateCallback];
+            }
             stateCallback([self buildInputtingState]);
             return YES;
         }
+        _smartMixedPendingKeyRun.clear();
     }
 
     // Issue 753
@@ -2535,7 +2907,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 
 - (InputStateChoosingCandidate *)_buildCandidateStateFromInputtingState:(InputStateInputting *)inputting useVerticalMode:(BOOL)useVerticalMode
 {
-    auto candidates = _grid->candidatesAt(self.actualCandidateCursorIndex);
+    auto candidates = Preferences.selectPhraseAfterCursorAsCandidate
+        ? _grid->candidatesAt(self.actualCandidateCursorIndex)
+        : _grid->candidatesEndingAt(_grid->cursor());
 
     std::unordered_map<std::string, size_t> valueCountMap;
     for (const auto& c : candidates) {

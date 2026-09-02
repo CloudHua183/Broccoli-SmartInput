@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 import CandidateUI
+import Cocoa
 import XCTest
 
 @testable import McBopomofo
@@ -36,11 +37,14 @@ class KeyHandlerBopomofoTests: XCTestCase {
     var handler = KeyHandler()
     var savedKeyboardLayout: KeyboardLayout = .standard
     var chineseConversionEnabled: Bool = false
+    var smartMixedInputEnabled: Bool = true
 
     override func setUpWithError() throws {
         savedKeyboardLayout = Preferences.keyboardLayout
         chineseConversionEnabled = Preferences.chineseConversionEnabled
+        smartMixedInputEnabled = Preferences.smartMixedInputEnabled
         Preferences.chineseConversionEnabled = false
+        Preferences.smartMixedInputEnabled = true
         Preferences.keyboardLayout = .standard
         LanguageModelManager.loadDataModels()
         handler = KeyHandler()
@@ -50,6 +54,100 @@ class KeyHandlerBopomofoTests: XCTestCase {
     override func tearDownWithError() throws {
         Preferences.chineseConversionEnabled = chineseConversionEnabled
         Preferences.keyboardLayout = savedKeyboardLayout
+        Preferences.smartMixedInputEnabled = smartMixedInputEnabled
+    }
+
+    private func handle(
+        _ text: String,
+        state: inout InputState,
+        flags: NSEvent.ModifierFlags = []
+    ) {
+        var currentState = state
+        for key in text.map(String.init) {
+            let input = KeyHandlerInput(
+                inputText: key, keyCode: 0, charCode: charCode(key), flags: flags,
+                isVerticalMode: false)
+            handler.handle(input: input, state: currentState) { newState in
+                currentState = newState
+            } errorCallback: {
+            }
+        }
+        state = currentState
+    }
+
+    private func assertSmartMixedArrowShortcut(
+        closingText: String,
+        closingKeyCode: UInt16,
+        closingTextIgnoringModifiers: String,
+        expectedArrow: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var state: InputState = InputState.Empty()
+        var commitState: InputState?
+
+        let dash = KeyHandlerInput(
+            inputText: "—", keyCode: 27, charCode: charCode("—"), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: "-")
+        handler.handle(input: dash, state: state) { newState in
+            state = newState
+            if newState is InputState.Committing {
+                commitState = newState
+            }
+        } errorCallback: {
+        }
+
+        let closing = KeyHandlerInput(
+            inputText: closingText, keyCode: closingKeyCode,
+            charCode: charCode(closingText), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: closingTextIgnoringModifiers)
+        handler.handle(input: closing, state: state) { newState in
+            state = newState
+            if newState is InputState.Committing {
+                commitState = newState
+            }
+        } errorCallback: {
+        }
+
+        XCTAssertTrue(state is InputState.EmptyIgnoringPreviousState, file: file, line: line)
+        XCTAssertTrue(commitState is InputState.Committing, file: file, line: line)
+        if let commitState = commitState as? InputState.Committing {
+            XCTAssertEqual(commitState.poppedText, expectedArrow, file: file, line: line)
+        }
+    }
+
+    private func assertSmartMixedArrowShortcutPreservesComposition(
+        closingText: String,
+        closingKeyCode: UInt16,
+        closingTextIgnoringModifiers: String,
+        expectedArrow: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+
+        let dash = KeyHandlerInput(
+            inputText: "—", keyCode: 27, charCode: charCode("—"), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: "-")
+        handler.handle(input: dash, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+
+        let closing = KeyHandlerInput(
+            inputText: closingText, keyCode: closingKeyCode,
+            charCode: charCode(closingText), flags: [.shift],
+            isVerticalMode: false, inputTextIgnoringModifiers: closingTextIgnoringModifiers)
+        handler.handle(input: closing, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+
+        XCTAssertTrue(state is InputState.Inputting, file: file, line: line)
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好\(expectedArrow)", file: file, line: line)
+        }
     }
 
     func testSyncWithPreferences() {
@@ -74,6 +172,30 @@ class KeyHandlerBopomofoTests: XCTestCase {
 
         Preferences.keyboardLayout = savedKeyboardLayout
         handler.syncWithPreferences()
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthPeriod() {
+        assertSmartMixedArrowShortcut(
+            closingText: "。", closingKeyCode: 47, closingTextIgnoringModifiers: ".",
+            expectedArrow: "→")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthComma() {
+        assertSmartMixedArrowShortcut(
+            closingText: "，", closingKeyCode: 43, closingTextIgnoringModifiers: ",",
+            expectedArrow: "←")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthPeriodPreservesComposition() {
+        assertSmartMixedArrowShortcutPreservesComposition(
+            closingText: "。", closingKeyCode: 47, closingTextIgnoringModifiers: ".",
+            expectedArrow: "→")
+    }
+
+    func testSmartMixedArrowShortcutWithFullWidthCommaPreservesComposition() {
+        assertSmartMixedArrowShortcutPreservesComposition(
+            closingText: "，", closingKeyCode: 43, closingTextIgnoringModifiers: ",",
+            expectedArrow: "←")
     }
 
     func testIgnoreEmpty() {
@@ -501,7 +623,11 @@ class KeyHandlerBopomofoTests: XCTestCase {
         } errorCallback: {
         }
 
-        XCTAssertFalse(result)
+        XCTAssertTrue(result)
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "一A")
+        }
     }
 
     // Regression test for #292.
@@ -536,8 +662,214 @@ class KeyHandlerBopomofoTests: XCTestCase {
 
         XCTAssertTrue(state is InputState.Inputting, "\(state)")
         if let state = state as? InputState.Inputting {
-            XCTAssertEqual(state.composingBuffer, "一a")
+            XCTAssertEqual(state.composingBuffer, "一A")
         }
+    }
+
+    func testSmartMixedASCIISequenceKeepsMeetingInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("M", state: &state, flags: .shift)
+        handle("eeting", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好Meeting")
+        }
+    }
+
+    func testSmartMixedASCIISequenceKeepsUppercaseAbbreviationInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("A", state: &state, flags: .shift)
+        handle("P", state: &state, flags: .shift)
+        handle("I", state: &state, flags: .shift)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好API")
+        }
+    }
+
+    func testSmartMixedASCIISequenceKeepsContinuousTrailingDigitsInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("A", state: &state, flags: .shift)
+        handle("I", state: &state, flags: .shift)
+        handle("2026", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好AI2026")
+        }
+    }
+
+    func testSmartMixedASCIISequenceReturnsToChineseAfterKnownEnglishWord() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("M", state: &state, flags: .shift)
+        handle("eeting", state: &state)
+        handle("e93", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好Meeting改")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsCallInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("call", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好call")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsMeetingAtSentenceStart() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("meeting", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "meeting")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsAPIInChineseContext() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("api", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好api")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsChromeUntilFullKnownWord() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("chrome", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "chrome")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceKeepsTestingUntilFullKnownWord() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("testing", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "testing")
+        }
+    }
+
+    func testSmartMixedLowercaseASCIISequenceReturnsToChineseBeforeDigitBopomofoReading() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("chrome204", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "chrome但")
+        }
+    }
+
+    func testSmartMixedASCIISequenceDoesNotHijackBopomofoPrefix() {
+        let associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
+        Preferences.associatedPhrasesEnabled = false
+        defer {
+            Preferences.associatedPhrasesEnabled = associatedPhrasesEnabled
+        }
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("ap", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好ㄇㄣ")
+            XCTAssertNotEqual(state.composingBuffer, "你好ap")
+        }
+    }
+
+    func testSmartMixedASCIISequenceCanBeDisabled() {
+        let current = Preferences.letterBehavior
+        Preferences.letterBehavior = 0
+        defer {
+            Preferences.letterBehavior = current
+        }
+        Preferences.smartMixedInputEnabled = false
+
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("M", state: &state, flags: .shift)
+
+        XCTAssertTrue(state is InputState.Empty, "\(state)")
     }
 
     func testPunctuationTable() {

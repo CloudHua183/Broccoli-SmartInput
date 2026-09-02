@@ -1,0 +1,13 @@
+# Smart mixed input ASCII words.
+# One word per line. Lines starting with # are ignored.
+meeting
+call
+email
+api
+sdk
+ai
+openai
+chatgpt
+github
+google
+chrome
