@@ -1,3 +1,5 @@
+const SHARED_SECRET_PROPERTY = "SHARED_SECRET";
+
 const TARGETS = {
   smart: {
     fileIdProperty: "SMART_MIXED_ASCII_WORDS_FILE_ID",
@@ -32,6 +34,11 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const authError = checkSharedSecret(e);
+  if (authError) {
+    return jsonResponse({ ok: false, error: authError });
+  }
+
   const target = normalizeTarget(e && e.parameter && e.parameter.target);
   if (!target) {
     return jsonResponse({ ok: false, error: "Missing or invalid target parameter." });
@@ -60,9 +67,41 @@ function doPost(e) {
   return jsonResponse({
     ok: true,
     target: target,
-    fileId: fileId,
     bytes: Utilities.newBlob(contents, "text/plain", config.description).getBytes().length,
   });
+}
+
+// The deployment has to allow anonymous access, because the input method
+// uploads without an OAuth token. Anyone who learns the deployment URL can
+// therefore reach doPost, and setContent() replaces the whole dictionary. A
+// shared secret kept in Script Properties (and in the local, git-ignored
+// patch-source.json) is what actually gates writes.
+//
+// This fails closed: if SHARED_SECRET is not set on the script, every upload
+// is rejected rather than silently accepted.
+function checkSharedSecret(e) {
+  const expected = PropertiesService.getScriptProperties().getProperty(SHARED_SECRET_PROPERTY);
+  if (!expected) {
+    return `Missing script property: ${SHARED_SECRET_PROPERTY}. Uploads are disabled until it is set.`;
+  }
+  const provided = e && e.parameter && e.parameter.secret;
+  if (!provided || !constantTimeEquals(String(provided), String(expected))) {
+    return "Unauthorized.";
+  }
+  return null;
+}
+
+// Compare without leaking the position of the first differing byte through
+// timing. Apps Script has no crypto.timingSafeEqual, so do it by hand.
+function constantTimeEquals(a, b) {
+  if (a.length !== b.length) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 function normalizeTarget(rawTarget) {
