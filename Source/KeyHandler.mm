@@ -70,6 +70,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     std::optional<char> _smartMixedASCIIPendingStartChar;
     std::string _smartMixedPendingKeyRun;
     NSString *_smartMixedArrowShortcutPendingInput;
+    // The arrow inserted by the previous keystroke, if the one after it can
+    // still upgrade the pair into a double arrow. Shift + - < > types ↔.
+    NSString *_smartMixedArrowUpgradeValue;
 }
 
 @synthesize delegate = _delegate;
@@ -344,6 +347,7 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIIPendingStartChar = std::nullopt;
     _smartMixedPendingKeyRun.clear();
     _smartMixedArrowShortcutPendingInput = nil;
+    _smartMixedArrowUpgradeValue = nil;
 }
 
 - (void)_resetSmartMixedASCIIState
@@ -353,6 +357,9 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     _smartMixedASCIIPendingStartChar = std::nullopt;
     _smartMixedPendingKeyRun.clear();
     _smartMixedArrowShortcutPendingInput = nil;
+    // Belt and braces: the arrow handler already clears this on every key it
+    // sees, but it is skipped while the candidate window is up.
+    _smartMixedArrowUpgradeValue = nil;
 }
 
 - (std::string)_lowercaseASCIIString:(const std::string&)value
@@ -591,6 +598,24 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 - (void)_resetSmartMixedArrowShortcutState
 {
     _smartMixedArrowShortcutPendingInput = nil;
+    _smartMixedArrowUpgradeValue = nil;
+}
+
+// Replace the punctuation node immediately before the cursor. Used to turn a
+// just-typed ← or → into ↔ when the third key of Shift + - < > arrives.
+- (BOOL)_replaceLastSmartMixedPunctuationWithValue:(NSString *)value
+                                     stateCallback:(void (^)(InputState *))stateCallback
+{
+    if (_grid->cursor() == 0) {
+        return NO;
+    }
+    if (!_grid->deleteReadingBeforeCursor()) {
+        return NO;
+    }
+    [self _walk];
+    return [self _insertSmartMixedPunctuationValue:value
+                                           reading:"_punctuation_list"
+                                     stateCallback:stateCallback];
 }
 
 - (BOOL)_handleSmartMixedArrowShortcutWithState:(InputState *)state
@@ -600,6 +625,22 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
 {
     BOOL shouldConsiderShiftArrowShortcut =
         input.isShiftHold && !input.isCommandHold && !input.isOptionHold && !input.isControlHold;
+
+    // Shift + - < >  ->  ↔ . The first two keys already produced ←; this turns
+    // the pair into a double arrow. The mirrored order (- > <) works too. Any
+    // other key ends the window, which is why the value is cleared up front.
+    if (_smartMixedArrowUpgradeValue != nil) {
+        NSString *previousArrow = _smartMixedArrowUpgradeValue;
+        _smartMixedArrowUpgradeValue = nil;
+        if (shouldConsiderShiftArrowShortcut) {
+            BOOL leftThenRight = [previousArrow isEqualToString:@"←"] && input.keyCode == 47;
+            BOOL rightThenLeft = [previousArrow isEqualToString:@"→"] && input.keyCode == 43;
+            if ((leftThenRight || rightThenLeft) &&
+                [self _replaceLastSmartMixedPunctuationWithValue:@"↔" stateCallback:stateCallback]) {
+                return YES;
+            }
+        }
+    }
     if (!shouldConsiderShiftArrowShortcut) {
         if (_smartMixedArrowShortcutPendingInput != nil) {
             NSString *pending = _smartMixedArrowShortcutPendingInput;
@@ -637,8 +678,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
         if (isPeriodKey || isCommaKey) {
             [self _resetSmartMixedArrowShortcutState];
             NSString *arrow = isCommaKey ? @"←" : @"→";
-            if ([state isKindOfClass:[InputStateNotEmpty class]] || _grid->length() > 0 || !_bpmfReadingBuffer->isEmpty()) {
-                return [self _insertSmartMixedPunctuationValue:arrow reading:"_punctuation_list" stateCallback:stateCallback];
+            // Always go through the grid, even on an empty buffer. Committing
+            // straight to the application would leave nothing to upgrade, so
+            // Shift + - < > could not produce ↔ at the start of a sentence.
+            if ([self _insertSmartMixedPunctuationValue:arrow reading:"_punctuation_list" stateCallback:stateCallback]) {
+                _smartMixedArrowUpgradeValue = arrow;
+                return YES;
             }
             stateCallback([[InputStateCommitting alloc] initWithPoppedText:arrow]);
             stateCallback([[InputStateEmptyIgnoringPreviousState alloc] init]);
