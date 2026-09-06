@@ -810,6 +810,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NonModalAlertWindowControlle
         LanguageModelManager.loadUserPhrases(
             enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
         LanguageModelManager.loadUserPhraseReplacement()
+        LanguageModelManager.loadCandidateOrder()
 
         fsStreamHelper?.delegate = nil
         fsStreamHelper?.stop()
@@ -959,6 +960,7 @@ extension AppDelegate: FSEventStreamHelperDelegate {
             LanguageModelManager.loadUserPhrases(
                 enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
             LanguageModelManager.loadUserPhraseReplacement()
+            LanguageModelManager.loadCandidateOrder()
         }
     }
 }

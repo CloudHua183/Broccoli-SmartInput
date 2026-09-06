@@ -23,6 +23,7 @@
 
 #include <cmath>
 #include <memory>
+#include <algorithm>
 #include <string>
 #include <utility>
 
@@ -67,6 +68,11 @@ constexpr char kUserPhrasesData[] = R"(
 constexpr char kRankedUserPhrasesData[] = R"(
 首選 ㄉㄨㄥˋ
 次選 ㄉㄨㄥˋ
+)";
+
+constexpr char kCandidateOrderData[] = R"(
+# reading followed by the values that should come first
+ㄇㄧㄥˊ 銘 名
 )";
 
 constexpr char kExcludedPhrasesData[] = R"(
@@ -226,6 +232,90 @@ TEST(McBopomofoLMTest, MultipleSyllableUserPhrasesNeedNoRewrite) {
   EXPECT_EQ(unigrams[0].score(), UserPhrasesLM::kUserUnigramScore);
   EXPECT_EQ(unigrams[1].value(), "名次");
   EXPECT_LT(unigrams[1].score(), 0);
+}
+
+TEST(McBopomofoLMTest, CandidateOrderMovesListedValuesToTheFront) {
+  McBopomofoLM lm;
+  lm.loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+      kPrimaryLMData, sizeof(kPrimaryLMData)));
+
+  auto before = lm.getUnigrams("ㄇㄧㄥˊ");
+  ASSERT_EQ(before.size(), 3);
+  EXPECT_EQ(before[0].value(), "明");
+  EXPECT_EQ(before[1].value(), "名");
+  EXPECT_EQ(before[2].value(), "銘");
+
+  lm.loadCandidateOrder(kCandidateOrderData, sizeof(kCandidateOrderData));
+
+  auto after = lm.getUnigrams("ㄇㄧㄥˊ");
+  ASSERT_EQ(after.size(), 3);
+  EXPECT_EQ(after[0].value(), "銘");
+  EXPECT_EQ(after[1].value(), "名");
+  // 明 was not listed, so it falls in behind the listed values.
+  EXPECT_EQ(after[2].value(), "明");
+}
+
+TEST(McBopomofoLMTest, CandidateOrderKeepsTheSameScoreSet) {
+  McBopomofoLM lm;
+  lm.loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+      kPrimaryLMData, sizeof(kPrimaryLMData)));
+  auto before = lm.getUnigrams("ㄇㄧㄥˊ");
+  std::vector<double> beforeScores;
+  for (const auto& unigram : before) {
+    beforeScores.push_back(unigram.score());
+  }
+  std::sort(beforeScores.begin(), beforeScores.end());
+
+  lm.loadCandidateOrder(kCandidateOrderData, sizeof(kCandidateOrderData));
+  auto after = lm.getUnigrams("ㄇㄧㄥˊ");
+  std::vector<double> afterScores;
+  for (const auto& unigram : after) {
+    afterScores.push_back(unigram.score());
+  }
+  std::sort(afterScores.begin(), afterScores.end());
+
+  // Reordering must not invent or lose scores. The top score in particular has
+  // to survive, otherwise the grid would start segmenting sentences
+  // differently just because the user reordered a candidate list.
+  EXPECT_EQ(beforeScores, afterScores);
+  EXPECT_EQ(after[0].score(), *std::max_element(beforeScores.begin(),
+                                                beforeScores.end()));
+  // The list is still ordered by descending score after the rewrite.
+  for (size_t i = 1; i < after.size(); ++i) {
+    EXPECT_LE(after[i].score(), after[i - 1].score());
+  }
+}
+
+TEST(McBopomofoLMTest, CandidateOrderLeavesUnlistedReadingsAlone) {
+  McBopomofoLM lm;
+  lm.loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+      kPrimaryLMData, sizeof(kPrimaryLMData)));
+  lm.loadCandidateOrder(kCandidateOrderData, sizeof(kCandidateOrderData));
+
+  auto unigrams = lm.getUnigrams("ㄉㄨㄥˋ");
+  ASSERT_EQ(unigrams.size(), 2);
+  EXPECT_EQ(unigrams[0].value(), "動");
+  EXPECT_EQ(unigrams[1].value(), "洞");
+}
+
+TEST(McBopomofoLMTest, CandidateOrderAppliesOnTopOfUserPhrases) {
+  McBopomofoLM lm;
+  lm.loadLanguageModel(std::make_unique<ParselessPhraseDB>(
+      kPrimaryLMData, sizeof(kPrimaryLMData)));
+  lm.loadUserPhrases(kUserPhrasesData, sizeof(kUserPhrasesData));
+
+  auto before = lm.getUnigrams("ㄇㄧㄥˊ");
+  ASSERT_EQ(before.size(), 4);
+  // The user phrase 茗 is promoted to the front by the user phrase rewrite.
+  EXPECT_EQ(before[0].value(), "茗");
+
+  constexpr char kOrderOverUserPhrase[] = "ㄇㄧㄥˊ 銘 茗\n";
+  lm.loadCandidateOrder(kOrderOverUserPhrase, sizeof(kOrderOverUserPhrase) - 1);
+
+  auto after = lm.getUnigrams("ㄇㄧㄥˊ");
+  ASSERT_EQ(after.size(), 4);
+  EXPECT_EQ(after[0].value(), "銘");
+  EXPECT_EQ(after[1].value(), "茗");
 }
 
 TEST(McBopomofoLMTest, ExternalConverterWhenNotSetThenEnablingItIsNoOp) {

@@ -24,6 +24,7 @@ DICTIONARY_FILES=(
   exclude-phrases-plain-bpmf.txt
   phrases-replacement.txt
   smart-mixed-ascii-words.txt
+  candidate-order.txt
 )
 
 if [[ ! -d "$ICLOUD_ROOT" ]]; then

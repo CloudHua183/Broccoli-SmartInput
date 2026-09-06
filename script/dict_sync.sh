@@ -90,7 +90,7 @@ if git rev-parse --verify --quiet "origin/$BRANCH" >/dev/null; then
     log "error: merge failed, leaving the tree for manual inspection"
     exit 1
   fi
-  if [[ -n "$(dedupe data.txt data-plain-bpmf.txt exclude-phrases.txt exclude-phrases-plain-bpmf.txt phrases-replacement.txt smart-mixed-ascii-words.txt)" ]]; then
+  if [[ -n "$(dedupe data.txt data-plain-bpmf.txt exclude-phrases.txt exclude-phrases-plain-bpmf.txt phrases-replacement.txt smart-mixed-ascii-words.txt candidate-order.txt)" ]]; then
     commit_if_dirty "dedupe after merge on $MACHINE"
   fi
 fi

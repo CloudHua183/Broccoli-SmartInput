@@ -1803,6 +1803,85 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     return NO;
 }
 
+// Moves the highlighted candidate one place up or down and remembers the new
+// order for that reading. Only candidates that share a reading can be swapped:
+// the list also contains candidates from longer overlapping nodes, and their
+// relative position is not something a per-reading ordering file can express.
+//
+// Option is used rather than Control because Control with the arrow keys is
+// taken by Mission Control at the system level and never reaches the input
+// method.
+- (BOOL)_handleCandidateReorderWithState:(InputState *)state
+                                   input:(KeyHandlerInput *)input
+                           stateCallback:(void (^)(InputState *))stateCallback
+                           errorCallback:(void (^)(void))errorCallback
+{
+    if (![state isKindOfClass:[InputStateChoosingCandidate class]]) {
+        return NO;
+    }
+    if (!input.isOptionHold || input.isControlHold || input.isCommandHold || input.isShiftHold) {
+        return NO;
+    }
+    if (!input.isUp && !input.isDown) {
+        return NO;
+    }
+
+    InputStateChoosingCandidate *choosing = (InputStateChoosingCandidate *)state;
+    NSArray *candidates = choosing.candidates;
+    VTCandidateController *controller = [self.delegate candidateControllerForKeyHandler:self];
+    if (controller == nil || candidates.count < 2) {
+        errorCallback();
+        return YES;
+    }
+
+    NSInteger index = (NSInteger)controller.selectedCandidateIndex;
+    NSInteger target = index + (input.isUp ? -1 : 1);
+    if (index < 0 || index >= (NSInteger)candidates.count ||
+        target < 0 || target >= (NSInteger)candidates.count) {
+        errorCallback();
+        return YES;
+    }
+
+    InputStateCandidate *moving = candidates[index];
+    InputStateCandidate *neighbour = candidates[target];
+    if (![moving.reading isEqualToString:neighbour.reading]) {
+        errorCallback();
+        return YES;
+    }
+
+    NSMutableArray *reordered = [candidates mutableCopy];
+    [reordered exchangeObjectAtIndex:index withObjectAtIndex:target];
+
+    NSMutableArray<NSString *> *values = [[NSMutableArray alloc] init];
+    for (InputStateCandidate *candidate in reordered) {
+        if ([candidate.reading isEqualToString:moving.reading]) {
+            [values addObject:candidate.value];
+        }
+    }
+
+    if (![LanguageModelManager writeCandidateOrderForReading:moving.reading values:values]) {
+        errorCallback();
+        return YES;
+    }
+    [LanguageModelManager loadCandidateOrder];
+
+    InputStateChoosingCandidate *newState =
+        [[InputStateChoosingCandidate alloc] initWithComposingBuffer:choosing.composingBuffer
+                                                         cursorIndex:choosing.cursorIndex
+                                                          candidates:reordered
+                                                     useVerticalMode:choosing.useVerticalMode];
+    newState.originalCursorIndex = choosing.originalCursorIndex;
+    stateCallback(newState);
+
+    // Keep the highlight on the candidate that just moved, so the shortcut can
+    // be pressed repeatedly to walk it up or down the list.
+    VTCandidateController *refreshed = [self.delegate candidateControllerForKeyHandler:self];
+    if (refreshed != nil && target < (NSInteger)reordered.count) {
+        refreshed.selectedCandidateIndex = (NSUInteger)target;
+    }
+    return YES;
+}
+
 - (BOOL)_handleCandidateState:(InputState *)state
                         input:(KeyHandlerInput *)input
                 stateCallback:(void (^)(InputState *))stateCallback
@@ -1811,6 +1890,10 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
     NSString *inputText = input.inputText;
     UniChar charCode = input.charCode;
     VTCandidateController *gCurrentCandidateController = [self.delegate candidateControllerForKeyHandler:self];
+
+    if ([self _handleCandidateReorderWithState:state input:input stateCallback:stateCallback errorCallback:errorCallback]) {
+        return YES;
+    }
 
     if ([state isKindOfClass:[InputStateAssociatedPhrases class]] &&
         [(InputStateAssociatedPhrases *)state autoTriggered]

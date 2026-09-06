@@ -24,8 +24,10 @@
 #include "McBopomofoLM.h"
 
 #include <algorithm>
+#include <fstream>
 #include <limits>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -78,6 +80,110 @@ void McBopomofoLM::loadUserPhrases(const char* userPhrasesDataPath,
 
 bool McBopomofoLM::isAssociatedPhrasesV2Loaded() const {
   return associatedPhrasesV2_.isLoaded();
+}
+
+namespace {
+
+// Splits on runs of spaces and tabs. The dictionary files this project already
+// ships use the same convention.
+std::vector<std::string> SplitOnWhitespace(const std::string& line) {
+  std::vector<std::string> tokens;
+  std::istringstream stream(line);
+  std::string token;
+  while (stream >> token) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+}  // namespace
+
+void McBopomofoLM::loadCandidateOrder(const char* candidateOrderPath) {
+  candidateOrder_.clear();
+  if (candidateOrderPath == nullptr) {
+    candidateOrderPath_.reset();
+    return;
+  }
+  candidateOrderPath_ = candidateOrderPath;
+
+  std::ifstream file(candidateOrderPath);
+  if (!file.is_open()) {
+    return;
+  }
+  parseCandidateOrder(file);
+}
+
+void McBopomofoLM::loadCandidateOrder(const char* data, size_t length) {
+  candidateOrder_.clear();
+  candidateOrderPath_.reset();
+  if (data == nullptr || length == 0) {
+    return;
+  }
+  std::istringstream stream(std::string(data, length));
+  parseCandidateOrder(stream);
+}
+
+void McBopomofoLM::parseCandidateOrder(std::istream& file) {
+  std::string line;
+  while (std::getline(file, line)) {
+    if (!line.empty() && line.back() == '\r') {
+      line.pop_back();
+    }
+    std::vector<std::string> tokens = SplitOnWhitespace(line);
+    if (tokens.empty() || tokens[0].rfind('#', 0) == 0) {
+      continue;
+    }
+    // A reading with no values carries no ordering.
+    if (tokens.size() < 2) {
+      continue;
+    }
+    std::vector<std::string> values(tokens.begin() + 1, tokens.end());
+    candidateOrder_[tokens[0]] = std::move(values);
+  }
+}
+
+void McBopomofoLM::applyCandidateOrder(
+    const std::string& key,
+    std::vector<Formosa::Gramambular2::LanguageModel::Unigram>& unigrams)
+    const {
+  if (unigrams.size() < 2) {
+    return;
+  }
+  auto iter = candidateOrder_.find(key);
+  if (iter == candidateOrder_.end() || iter->second.empty()) {
+    return;
+  }
+
+  std::vector<double> scores;
+  scores.reserve(unigrams.size());
+  for (const auto& unigram : unigrams) {
+    scores.push_back(unigram.score());
+  }
+  std::sort(scores.begin(), scores.end(), std::greater<double>());
+
+  std::vector<Formosa::Gramambular2::LanguageModel::Unigram> reordered;
+  reordered.reserve(unigrams.size());
+  std::vector<bool> taken(unigrams.size(), false);
+  for (const std::string& value : iter->second) {
+    for (size_t i = 0; i < unigrams.size(); ++i) {
+      if (!taken[i] && unigrams[i].value() == value) {
+        reordered.push_back(unigrams[i]);
+        taken[i] = true;
+        break;
+      }
+    }
+  }
+  for (size_t i = 0; i < unigrams.size(); ++i) {
+    if (!taken[i]) {
+      reordered.push_back(unigrams[i]);
+    }
+  }
+
+  for (size_t i = 0; i < reordered.size(); ++i) {
+    reordered[i] = Formosa::Gramambular2::LanguageModel::Unigram(
+        reordered[i].value(), scores[i], reordered[i].rawValue());
+  }
+  unigrams = std::move(reordered);
 }
 
 void McBopomofoLM::loadPhraseReplacementMap(const char* phraseReplacementPath) {
@@ -216,6 +322,8 @@ McBopomofoLM::getUnigrams(const std::string& key) {
     allUnigrams.insert(allUnigrams.begin(), rewrittenUserUnigrams.begin(),
                        rewrittenUserUnigrams.end());
   }
+
+  applyCandidateOrder(key, allUnigrams);
 
   return allUnigrams;
 }

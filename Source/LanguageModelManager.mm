@@ -181,6 +181,59 @@ static void LTLoadVariantAnnotatorData()
         [self excludedPhrasesDataPathPlainBopomofo].UTF8String);
 }
 
++ (void)loadCandidateOrder
+{
+    gLanguageModelMcBopomofo.loadCandidateOrder([self candidateOrderDataPath].UTF8String);
+    gLanguageModelPlainBopomofo.loadCandidateOrder([self candidateOrderDataPath].UTF8String);
+}
+
+// Rewrites the ordering for one reading. The file is small and rewritten whole
+// so that a line is replaced rather than accumulating stale duplicates.
++ (BOOL)writeCandidateOrderForReading:(NSString *)reading values:(NSArray<NSString *> *)values
+{
+    if (reading.length == 0 || values.count == 0) {
+        return NO;
+    }
+    if (![self checkIfUserDataFolderExists]) {
+        return NO;
+    }
+
+    NSString *path = [self candidateOrderDataPath];
+    NSMutableArray<NSString *> *lines = [NSMutableArray array];
+
+    NSString *existing = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:NULL];
+    if (existing.length > 0) {
+        for (NSString *line in [existing componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
+            NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if (trimmed.length == 0) {
+                continue;
+            }
+            if ([trimmed hasPrefix:@"#"]) {
+                [lines addObject:trimmed];
+                continue;
+            }
+            NSArray<NSString *> *parts = [trimmed componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            if (parts.count > 0 && [parts.firstObject isEqualToString:reading]) {
+                continue;
+            }
+            [lines addObject:trimmed];
+        }
+    } else {
+        [lines addObject:@"# Preferred candidate order."];
+        [lines addObject:@"# One reading per line, followed by the values that should come first."];
+    }
+
+    [lines addObject:[NSString stringWithFormat:@"%@ %@", reading, [values componentsJoinedByString:@" "]]];
+
+    NSString *output = [[lines componentsJoinedByString:@"\n"] stringByAppendingString:@"\n"];
+    NSError *error = nil;
+    BOOL result = [output writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    if (!result) {
+        NSLog(@"Failed to write candidate order: %@", error);
+    }
+    return result;
+}
+
 + (void)loadUserPhraseReplacement
 {
     gLanguageModelMcBopomofo.loadPhraseReplacementMap([self phraseReplacementDataPathMcBopomofo].UTF8String);
@@ -767,6 +820,11 @@ static void LTLoadVariantAnnotatorData()
 + (NSString *)phraseReplacementDataPathMcBopomofo
 {
     return [[self dataFolderPath] stringByAppendingPathComponent:@"phrases-replacement.txt"];
+}
+
++ (NSString *)candidateOrderDataPath
+{
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"candidate-order.txt"];
 }
 
 + (NSString *)smartMixedASCIIWordsDataPath

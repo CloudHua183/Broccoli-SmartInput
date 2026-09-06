@@ -26,9 +26,11 @@
 
 #include <filesystem>
 #include <functional>
+#include <istream>
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -85,6 +87,15 @@ class McBopomofoLM : public Formosa::Gramambular2::LanguageModel {
   // Loads (or reloads if already loaded) the phrase replacement mapping file.
   void loadPhraseReplacementMap(const char* phraseReplacementPath);
 
+  // Loads the preferred candidate order. Each line is a reading followed by
+  // the values that should come first, in the order they should appear:
+  //
+  //     ㄗㄤˋ 藏 臟 葬
+  //
+  // Values that are not listed keep their relative order behind the listed
+  // ones. Passing nullptr clears the ordering.
+  void loadCandidateOrder(const char* candidateOrderPath);
+
   // Returns a list of unigrams for the reading. For example, if the reading is
   // "ㄇㄚ", the return may be [unigram("嗎"), unigram("媽") and so on.
   std::vector<Formosa::Gramambular2::LanguageModel::Unigram> getUnigrams(
@@ -116,6 +127,7 @@ class McBopomofoLM : public Formosa::Gramambular2::LanguageModel {
   void loadUserPhrases(const char* data, size_t length);
   void loadExcludedPhrases(const char* data, size_t length);
   void loadPhraseReplacementMap(const char* data, size_t length);
+  void loadCandidateOrder(const char* data, size_t length);
 
   enum class UserFileType {
     USER_PHRASES,
@@ -154,6 +166,18 @@ class McBopomofoLM : public Formosa::Gramambular2::LanguageModel {
       const std::unordered_set<std::string>& excludedValues,
       std::unordered_set<std::string>& insertedValues) const;
 
+  // Moves the values listed for this reading to the front, in the listed
+  // order. Scores are reassigned by position from the same set of scores the
+  // unigrams already had, so the node keeps its top score and the sentence is
+  // still segmented the same way: this changes which candidate is offered
+  // first, not how the grid walks.
+  void parseCandidateOrder(std::istream& stream);
+
+  void applyCandidateOrder(
+      const std::string& key,
+      std::vector<Formosa::Gramambular2::LanguageModel::Unigram>& unigrams)
+      const;
+
   ParselessLM languageModel_;
   UserPhrasesLM userPhrases_;
   UserPhrasesLM excludedPhrases_;
@@ -163,6 +187,9 @@ class McBopomofoLM : public Formosa::Gramambular2::LanguageModel {
   std::optional<std::filesystem::path> userPhrasesDataPath_;
   std::optional<std::filesystem::path> excludedPhrasesDataPath_;
   std::optional<std::filesystem::path> phraseReplacementPath_;
+
+  std::optional<std::filesystem::path> candidateOrderPath_;
+  std::unordered_map<std::string, std::vector<std::string>> candidateOrder_;
 
   bool phraseReplacementEnabled_ = false;
 

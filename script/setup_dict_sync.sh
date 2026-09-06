@@ -33,6 +33,7 @@ DICTIONARY_FILES=(
   exclude-phrases-plain-bpmf.txt
   phrases-replacement.txt
   smart-mixed-ascii-words.txt
+  candidate-order.txt
 )
 
 if [[ ! -x "$SYNC_SCRIPT" ]]; then
