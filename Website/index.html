@@ -38,13 +38,13 @@
           以 McBopomofo 小麥注音 3.1（2496）為基底，加入中英混合輸入、個人詞庫快捷新增、iCloud 詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.0/Broccoli-SmartInput-v1.2.0-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.1.0</dd>
+            <dd>v1.2.0</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -52,7 +52,7 @@
           </div>
           <div>
             <dt>安裝包</dt>
-            <dd>2026-09-02</dd>
+            <dd>2026-09-06</dd>
           </div>
         </dl>
       </div>
@@ -230,12 +230,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.dmg" download>下載 Broccoli SmartInput v1.1.0 DMG</a>
-          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.0/Broccoli-SmartInput-v1.2.0-personal.dmg" download>下載 Broccoli SmartInput v1.2.0 DMG</a>
+          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.0/Broccoli-SmartInput-v1.2.0-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.1.0-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.2.0-personal.pkg</code>。</li>
         <li>需要 macOS 13 Ventura 或更新版本。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
@@ -255,11 +255,11 @@
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
         <p class="terminal-note">用終端機下載可以完全避開 Gatekeeper 的「無法驗證」：<code>curl</code> 取得的檔案不會被加上隔離屬性，瀏覽器下載的才會。</p>
-        <pre><code id="terminal-install-code">curl -L -o /tmp/broccoli.pkg https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.1.0/Broccoli-SmartInput-v1.1.0-personal.pkg
+        <pre><code id="terminal-install-code">curl -L -o /tmp/broccoli.pkg https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.0/Broccoli-SmartInput-v1.2.0-personal.pkg
 sudo installer -pkg /tmp/broccoli.pkg -target /
 open ~/Library/Input\ Methods/McBopomofo.app</code></pre>
         <p class="terminal-note">已經用瀏覽器下載好 PKG 的話，先複製到 <code>/tmp</code> 再移除隔離屬性——DMG 是唯讀磁碟區，直接對裡面的檔案下 <code>xattr</code> 一定會失敗：</p>
-        <pre><code>cp ~/Downloads/Broccoli-SmartInput-v1.1.0-personal.pkg /tmp/broccoli.pkg
+        <pre><code>cp ~/Downloads/Broccoli-SmartInput-v1.2.0-personal.pkg /tmp/broccoli.pkg
 xattr -dr com.apple.quarantine /tmp/broccoli.pkg
 sudo installer -pkg /tmp/broccoli.pkg -target /</code></pre>
       </div>
@@ -291,33 +291,28 @@ sudo installer -pkg /tmp/broccoli.pkg -target /</code></pre>
     <section class="section">
       <div class="section-heading">
         <p class="eyebrow">Release Notes</p>
-        <h2>v1.1.0 更新</h2>
+        <h2>v1.2.0 更新</h2>
       </div>
       <div class="feature-grid">
         <article class="feature">
-          <span class="status done">已完成</span>
-          <h3>升級到小麥注音 3.1（2496）</h3>
-          <p>基底從小麥注音 3.0 換成 3.1，帶來詞庫大幅修訂、可輸入漢字擴充、快速文字轉換、標點字母候選、全字庫字形查詢與多項讀音修正。</p>
+          <span class="status done">新功能</span>
+          <h3>候選字順序可自訂</h3>
+          <p>候選視窗開著時用 <kbd>Option</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> 把常用的字往上搬。順序記在 <code>candidate-order.txt</code>，跟著多機同步。只改顯示順序，不影響整句斷詞。</p>
         </article>
         <article class="feature">
-          <span class="status done">已完成</span>
-          <h3>花椰功能完整保留</h3>
-          <p>智慧中英混輸、個人詞庫快捷新增、游標前選詞與使用者詞排序都已逐一移植到新基底，並通過引擎測試。</p>
+          <span class="status done">新功能</span>
+          <h3>雙向箭頭 ↔</h3>
+          <p>按住 <kbd>Shift</kbd> 依序按 <code>-</code> <code>&lt;</code> <code>&gt;</code> 得到 <code>↔</code>，反向 <code>-</code> <code>&gt;</code> <code>&lt;</code> 也可以。原有的 <code>←</code> 與 <code>→</code> 不變。</p>
         </article>
         <article class="feature">
-          <span class="status done">已完成</span>
-          <h3>不再連到官方小麥的更新來源</h3>
-          <p>移除上游更新檢查，避免花椰使用者被導向安裝官方小麥注音。要取得新版請用選單的「開啟 / 下載 GitHub 最新 Release」。</p>
+          <span class="status done">已改善</span>
+          <h3>安裝指令修正</h3>
+          <p>原本的終端機指令對唯讀的 DMG 磁碟區下 <code>xattr</code>，那不可能成功。改為直接用 <code>curl</code> 下載，從源頭避開 Gatekeeper 的「無法驗證」。</p>
         </article>
         <article class="feature">
-          <span class="status done">已完成</span>
-          <h3>詞庫同步改用 iCloud 雲碟</h3>
-          <p>不再使用需要匿名存取的雲端端點。詞庫放在 iCloud 雲碟，只有登入你 Apple 帳號的 Mac 讀得到，輸入法本身完全不連網。</p>
-        </article>
-        <article class="feature">
-          <span class="status done">已完成</span>
-          <h3>最低系統需求提高到 macOS 13</h3>
-          <p>與上游小麥注音 3.1 一致，需要 macOS 13 Ventura 或更新版本。</p>
+          <span class="status done">已改善</span>
+          <h3>多機同步支援不同 Apple 帳號</h3>
+          <p>除了 iCloud 雲碟，現在也可以把詞庫放進私有 git repo。跨 Apple 帳號可用，而且多了版本歷史。</p>
         </article>
       </div>
     </section>
