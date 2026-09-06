@@ -1811,6 +1811,12 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                     stateCallback(candidateState);
                 }
             } else {
+                // Some web editors append the replacement punctuation to the
+                // punctuation-list marked text instead of replacing it.
+                // Clear that transient marked text before publishing the
+                // selected punctuation.
+                InputStateEmptyIgnoringPreviousState *empty = [[InputStateEmptyIgnoringPreviousState alloc] init];
+                stateCallback(empty);
                 InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
                 stateCallback(inputting);
             }

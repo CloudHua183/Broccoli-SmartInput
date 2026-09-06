@@ -3452,8 +3452,9 @@ extension KeyHandlerBopomofoTests {
         XCTAssertTrue(state is InputState.SelectingFeature, "\(state)")
     }
 
-    func testBacktickThenPunctuation() {
-        // Handle ` key then valid punctuation (e.g., < for comma)
+    func testPunctuationListSelectionClearsPreviousMarkedText() {
+        // A web editor can append the selected punctuation to the punctuation
+        // list's marked text unless the list state is explicitly cleared first.
         let input = KeyHandlerInput(
             inputText: "`", keyCode: 0, charCode: charCode("`"), flags: .shift,
             isVerticalMode: false)
@@ -3463,16 +3464,21 @@ extension KeyHandlerBopomofoTests {
         } errorCallback: {
         }
         let punct = KeyHandlerInput(
-            inputText: "<", keyCode: 0, charCode: charCode("<"), flags: .shift,
+            inputText: "'", keyCode: 0, charCode: charCode("'"), flags: [],
             isVerticalMode: false)
+        var states: [InputState] = []
         handler.handle(input: punct, state: state) { newState in
             state = newState
+            states.append(newState)
         } errorCallback: {
         }
-        // Should either commit a punctuation or reset
-        XCTAssertTrue(
-            state is InputState.ChoosingCandidate || state is InputState.EmptyIgnoringPreviousState
-                || state is InputState.Inputting, "\(state)")
+
+        XCTAssertEqual(states.count, 2)
+        XCTAssertTrue(states[0] is InputState.EmptyIgnoringPreviousState, "\(states)")
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "、")
+        }
     }
 
     func testDoubleBackquoteForceCommit() {
