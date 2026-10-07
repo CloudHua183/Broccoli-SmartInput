@@ -92,17 +92,16 @@ class KeyHandlerBopomofoTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
+        // Since 1a811a0 (Shift + - < > double arrow) the arrow always goes
+        // through the grid, even on an empty buffer, so it can still be
+        // upgraded to ↔ by a third key. It is no longer committed directly.
         var state: InputState = InputState.Empty()
-        var commitState: InputState?
 
         let dash = KeyHandlerInput(
             inputText: "—", keyCode: 27, charCode: charCode("—"), flags: [.shift],
             isVerticalMode: false, inputTextIgnoringModifiers: "-")
         handler.handle(input: dash, state: state) { newState in
             state = newState
-            if newState is InputState.Committing {
-                commitState = newState
-            }
         } errorCallback: {
         }
 
@@ -112,16 +111,30 @@ class KeyHandlerBopomofoTests: XCTestCase {
             isVerticalMode: false, inputTextIgnoringModifiers: closingTextIgnoringModifiers)
         handler.handle(input: closing, state: state) { newState in
             state = newState
-            if newState is InputState.Committing {
-                commitState = newState
-            }
         } errorCallback: {
         }
 
-        XCTAssertTrue(state is InputState.EmptyIgnoringPreviousState, file: file, line: line)
-        XCTAssertTrue(commitState is InputState.Committing, file: file, line: line)
-        if let commitState = commitState as? InputState.Committing {
-            XCTAssertEqual(commitState.poppedText, expectedArrow, file: file, line: line)
+        XCTAssertTrue(state is InputState.Inputting, "\(state)", file: file, line: line)
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, expectedArrow, file: file, line: line)
+        }
+    }
+
+    func testSmartMixedArrowShortcutUpgradesToDoubleArrow() {
+        var state: InputState = InputState.Empty()
+        let keys: [(String, UInt16, String)] = [("—", 27, "-"), ("，", 43, ","), ("。", 47, ".")]
+        for (text, keyCode, plain) in keys {
+            let input = KeyHandlerInput(
+                inputText: text, keyCode: keyCode, charCode: charCode(text), flags: [.shift],
+                isVerticalMode: false, inputTextIgnoringModifiers: plain)
+            handler.handle(input: input, state: state) { newState in
+                state = newState
+            } errorCallback: {
+            }
+        }
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "↔")
         }
     }
 
@@ -3480,6 +3493,36 @@ extension KeyHandlerBopomofoTests {
         XCTAssertTrue(
             state is InputState.ChoosingCandidate || state is InputState.EmptyIgnoringPreviousState
                 || state is InputState.Inputting, "\(state)")
+    }
+
+    func testPunctuationListSelectionClearsPreviousMarkedText() {
+        // A web editor (e.g. Canva) can append the selected punctuation to the
+        // punctuation list's marked text ("‘、") unless the list state is
+        // explicitly cleared first.
+        let input = KeyHandlerInput(
+            inputText: "`", keyCode: 0, charCode: charCode("`"), flags: .shift,
+            isVerticalMode: false)
+        var state: InputState = InputState.Empty()
+        handler.handle(input: input, state: state) { newState in
+            state = newState
+        } errorCallback: {
+        }
+        let punct = KeyHandlerInput(
+            inputText: "'", keyCode: 0, charCode: charCode("'"), flags: [],
+            isVerticalMode: false)
+        var states: [InputState] = []
+        handler.handle(input: punct, state: state) { newState in
+            state = newState
+            states.append(newState)
+        } errorCallback: {
+        }
+
+        XCTAssertEqual(states.count, 2)
+        XCTAssertTrue(states[0] is InputState.EmptyIgnoringPreviousState, "\(states)")
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "、")
+        }
     }
 
     func testDoubleBackquoteForceCommit() {

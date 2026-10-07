@@ -1951,6 +1951,13 @@ InputMode InputModePlainBopomofo = @"org.openvanilla.inputmethod.McBopomofo.Plai
                     stateCallback(candidateState);
                 }
             } else {
+                // Some web editors (e.g. Canva) append the replacement
+                // punctuation to the punctuation-list marked text instead of
+                // replacing it, which shows up as a stray character before the
+                // punctuation (e.g. "‘、"). Clear that transient marked text
+                // before publishing the selected punctuation.
+                InputStateEmptyIgnoringPreviousState *empty = [[InputStateEmptyIgnoringPreviousState alloc] init];
+                stateCallback(empty);
                 InputStateInputting *inputting = (InputStateInputting *)[self buildInputtingState];
                 stateCallback(inputting);
             }
