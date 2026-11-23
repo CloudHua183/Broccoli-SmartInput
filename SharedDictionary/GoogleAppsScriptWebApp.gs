@@ -56,10 +56,26 @@ function doPost(e) {
     return jsonResponse({ ok: false, error: validationError });
   }
 
+  // Optimistic concurrency (A7): the app sends the SHA-256 of the cloud copy
+  // it merged against. If another Mac uploaded in between, refuse and let the
+  // app merge again instead of overwriting that Mac's words. Uploads without
+  // baseHash (older app versions) are accepted as before.
+  const baseHash = e && e.parameter && e.parameter.baseHash;
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    DriveApp.getFileById(fileId).setContent(contents);
+    const file = DriveApp.getFileById(fileId);
+    if (baseHash) {
+      const current = normalizeContent(file.getBlob().getDataAsString("UTF-8"));
+      if (sha256Hex(current) !== String(baseHash).toLowerCase()) {
+        return jsonResponse({
+          ok: false,
+          conflict: true,
+          error: "The cloud dictionary changed since it was downloaded. Sync again.",
+        });
+      }
+    }
+    file.setContent(contents);
   } finally {
     lock.releaseLock();
   }
@@ -102,6 +118,15 @@ function constantTimeEquals(a, b) {
     diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return diff === 0;
+}
+
+function sha256Hex(text) {
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    text,
+    Utilities.Charset.UTF_8
+  );
+  return bytes.map((b) => ((b + 256) % 256).toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeTarget(rawTarget) {

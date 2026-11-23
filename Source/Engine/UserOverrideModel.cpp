@@ -24,6 +24,9 @@
 
 #include "UserOverrideModel.h"
 
+#include <sstream>
+#include <vector>
+
 #include <cassert>
 #include <cmath>
 #include <list>
@@ -184,6 +187,90 @@ void UserOverrideModel::observe(const std::string& key,
     auto& keyValuePair = *listIter;
     Observation& observation = keyValuePair.second;
     observation.update(candidate, timestamp, forceHighScoreOverride);
+  }
+}
+
+namespace {
+bool HasSeparator(const std::string& s) {
+  return s.find('\t') != std::string::npos ||
+         s.find('\n') != std::string::npos ||
+         s.find('\r') != std::string::npos;
+}
+}  // namespace
+
+std::string UserOverrideModel::serialize() const {
+  std::ostringstream out;
+  out.precision(17);
+  for (const auto& [key, observation] : lruList_) {
+    if (key.empty() || HasSeparator(key)) {
+      continue;
+    }
+    std::ostringstream line;
+    line.precision(17);
+    line << key << '\t' << observation.count;
+    size_t written = 0;
+    for (const auto& [candidate, o] : observation.overrides) {
+      if (candidate.empty() || HasSeparator(candidate)) {
+        continue;
+      }
+      line << '\t' << candidate << '\t' << o.count << '\t' << o.timestamp
+           << '\t' << (o.forceHighScoreOverride ? 1 : 0);
+      ++written;
+    }
+    if (written > 0) {
+      out << line.str() << '\n';
+    }
+  }
+  return out.str();
+}
+
+void UserOverrideModel::clear() {
+  lruList_.clear();
+  lruMap_.clear();
+}
+
+void UserOverrideModel::deserialize(const std::string& data) {
+  clear();
+  std::istringstream in(data);
+  std::string line;
+  while (std::getline(in, line) && lruList_.size() < capacity_) {
+    std::vector<std::string> fields;
+    size_t start = 0;
+    while (true) {
+      size_t tab = line.find('\t', start);
+      fields.push_back(line.substr(start, tab - start));
+      if (tab == std::string::npos) break;
+      start = tab + 1;
+    }
+    // key, count, then groups of four.
+    if (fields.size() < 6 || (fields.size() - 2) % 4 != 0) {
+      continue;
+    }
+    const std::string& key = fields[0];
+    if (key.empty() || lruMap_.count(key) > 0) {
+      continue;
+    }
+    Observation observation;
+    try {
+      observation.count = std::stoul(fields[1]);
+      for (size_t i = 2; i + 3 < fields.size(); i += 4) {
+        if (fields[i].empty()) continue;
+        Override o;
+        o.count = std::stoul(fields[i + 1]);
+        o.timestamp = std::stod(fields[i + 2]);
+        o.forceHighScoreOverride = fields[i + 3] == "1";
+        observation.overrides[fields[i]] = o;
+      }
+    } catch (...) {
+      continue;
+    }
+    if (observation.overrides.empty() || observation.count == 0) {
+      continue;
+    }
+    lruList_.emplace_back(key, observation);
+    auto listIter = lruList_.end();
+    --listIter;
+    lruMap_.emplace(key, listIter);
   }
 }
 

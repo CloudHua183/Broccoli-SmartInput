@@ -62,6 +62,17 @@ class UserOverrideModel {
 
   Suggestion suggest(const std::string& key, double timestamp);
 
+  // Broccoli SmartInput: persistence so learned overrides survive a restart.
+  // One observation per line, tab separated, most recently used first:
+  //   key \t count \t (candidate \t count \t timestamp \t force)...
+  // Entries whose key or candidate contains a tab or newline are skipped.
+  [[nodiscard]] std::string serialize() const;
+  // Replaces the current contents. Malformed lines are ignored and at most
+  // `capacity` observations are kept.
+  void deserialize(const std::string& data);
+  void clear();
+  [[nodiscard]] size_t size() const { return lruList_.size(); }
+
  private:
   struct Override {
     size_t count = 0;

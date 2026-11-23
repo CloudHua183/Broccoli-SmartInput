@@ -166,3 +166,12 @@ the Apps Script writeback URLs, backs up local files, and writes them into:
 ```
 
 If upload URLs are omitted, sync behaves as read-only download plus local merge.
+
+
+## 2026-11-22：回寫版本檢查（A7）— 需要重新部署 Apps Script
+
+`GoogleAppsScriptWebApp.gs` 新增了版本檢查：App 上傳時會附上「下載時雲端檔案的 SHA-256」（`baseHash`）。如果另一台 Mac 在這中間已經上傳過，Script 會回 `{ ok: false, conflict: true }`，App 會重新下載、合併後再上傳一次，不會蓋掉另一台的詞。
+
+App 同時修正了一個舊問題：Script 拒絕上傳時（例如密鑰錯誤）一樣回 HTTP 200，舊版 App 會當成成功；現在會讀 JSON 的 `ok` 欄位並顯示錯誤。
+
+啟用方式：把新版 `.gs` 貼到 Apps Script 專案 → 部署 → 管理部署作業 → 編輯現有部署 → 版本選「新版本」→ 部署（網址不變）。沒有重新部署前，舊 Script 會忽略 `baseHash`，行為跟以前一樣。

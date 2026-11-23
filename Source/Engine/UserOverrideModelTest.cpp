@@ -275,4 +275,38 @@ TEST(UserOverrideModelTest, WalkResultSnapshotTest) {
   ASSERT_EQ(suggestion.candidate, "機油");
 }
 
+TEST(UserOverrideModelTest, SerializeRoundTripKeepsSuggestionsAndOrder) {
+  UserOverrideModel uom(kCapacity, kHalflife);
+  uom.observe("k1", "a", kFakeNow);
+  uom.observe("k2", "b", kFakeNow + 1, /*forceHighScoreOverride=*/true);
+  uom.observe("k1", "c", kFakeNow + 2);
+  uom.observe("k1", "c", kFakeNow + 3);
+
+  UserOverrideModel restored(kCapacity, kHalflife);
+  restored.deserialize(uom.serialize());
+  EXPECT_EQ(restored.size(), 2u);
+  EXPECT_EQ(restored.suggest("k1", kFakeNow + 4).candidate, "c");
+  auto k2 = restored.suggest("k2", kFakeNow + 4);
+  EXPECT_EQ(k2.candidate, "b");
+  EXPECT_TRUE(k2.forceHighScoreOverride);
+  // The serialized form lists the most recently used key first.
+  EXPECT_EQ(restored.serialize().rfind("k1\t", 0), 0u);
+}
+
+TEST(UserOverrideModelTest, DeserializeSkipsMalformedLinesAndRespectsCapacity) {
+  UserOverrideModel uom(2, kHalflife);
+  uom.deserialize(
+      "bad line\n"
+      "k1\t1\ta\t1\t1657772432\t0\n"
+      "k2\tx\ta\t1\t1657772432\t0\n"
+      "k3\t1\tb\t1\t1657772432\t1\n"
+      "k4\t1\tc\t1\t1657772432\t0\n");
+  EXPECT_EQ(uom.size(), 2u);
+  EXPECT_EQ(uom.suggest("k1", kFakeNow).candidate, "a");
+  EXPECT_EQ(uom.suggest("k3", kFakeNow).candidate, "b");
+  EXPECT_TRUE(uom.suggest("k4", kFakeNow).empty());
+  uom.clear();
+  EXPECT_EQ(uom.size(), 0u);
+}
+
 }  // namespace McBopomofo

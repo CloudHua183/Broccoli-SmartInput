@@ -131,6 +131,28 @@ class McBopomofoInputMethodController: IMKInputController {
             phaseReplacementItem.state = Preferences.phraseReplacementEnabled.state
         }
 
+        // Broccoli SmartInput (T03, T05, T09)
+        menu.addItem(NSMenuItem.separator())
+        let mixedModeItem = menu.addItem(
+            withTitle: "中英混打", action: #selector(selectMixedTypingMode(_:)), keyEquivalent: "")
+        mixedModeItem.state = (Preferences.broccoliTypingMode == 0).state
+        let englishModeItem = menu.addItem(
+            withTitle: "純英文（⌃⌥E）", action: #selector(selectEnglishTypingMode(_:)),
+            keyEquivalent: "")
+        englishModeItem.state = (Preferences.broccoliTypingMode == 1).state
+        let bopomofoModeItem = menu.addItem(
+            withTitle: "注音符號輸出（⌃⌥B）", action: #selector(selectBopomofoSymbolTypingMode(_:)),
+            keyEquivalent: "")
+        bopomofoModeItem.state = (Preferences.broccoliTypingMode == 2).state
+        let autoSpacingItem = menu.addItem(
+            withTitle: "中英之間自動空格", action: #selector(toggleSmartMixedAutoSpacing(_:)),
+            keyEquivalent: "")
+        autoSpacingItem.state = Preferences.smartMixedAutoSpacingEnabled.state
+        let typingGuardItem = menu.addItem(
+            withTitle: "防誤觸（連續亂按時暫停輸入）", action: #selector(toggleTypingGuard(_:)),
+            keyEquivalent: "")
+        typingGuardItem.state = Preferences.typingGuardEnabled.state
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
             withTitle: NSLocalizedString("User Phrases", comment: ""), action: nil,
@@ -165,6 +187,9 @@ class McBopomofoInputMethodController: IMKInputController {
         menu.addItem(
             withTitle: "同步雲端詞庫",
             action: #selector(syncBroccoliPatchDictionaries(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "清除選字記憶與中英學習紀錄",
+            action: #selector(clearBroccoliLearning(_:)), keyEquivalent: "")
 
         if !McBopomofoInputMethodController.latestUserFileIssues.isEmpty {
             // Setting menuItem.image does not work in input method menus even on macOS 26,
@@ -212,6 +237,9 @@ class McBopomofoInputMethodController: IMKInputController {
     override func deactivateServer(_ client: Any!) {
         BroccoliDiagnostics.log(
             "deactivateServer called; host=\(clientBundleIdentifier(client)); state=\(type(of: state))")
+        // T07: keep what was learned in this session across restarts.
+        LanguageModelManager.saveUserOverrideModels()
+        LanguageModelManager.resetTypingGuard()
         currentClient = nil
         keyHandler.clear()
         self.handle(state: .Deactivated(), client: client)
@@ -291,6 +319,20 @@ class McBopomofoInputMethodController: IMKInputController {
                 return false
             }
             (client as? IMKTextInput)?.overrideKeyboard(withKeyboardNamed: basisKeyboardLayoutID)
+            return false
+        }
+
+        if handleBroccoliTypingModeShortcut(event, client: client) {
+            return true
+        }
+
+        if Preferences.typingGuardEnabled && shouldSwallowMashedKey(event) {
+            return true
+        }
+
+        // T05: in English-only mode keys go straight to the app, unless
+        // something is still being composed or chosen.
+        if Preferences.broccoliTypingMode == 1 && state is InputState.Empty {
             return false
         }
 
@@ -445,6 +487,111 @@ extension McBopomofoInputMethodController {
     private enum SmartUserPhraseTargetResult {
         case success(SmartUserPhraseShortcutTarget)
         case failure(String)
+    }
+
+    // MARK: - Broccoli SmartInput typing modes (T05) and typing guard (T09)
+
+    /// Control + Option + E toggles English-only mode, Control + Option + B
+    /// toggles Bopomofo-symbol output. Pressing the same shortcut again goes
+    /// back to Chinese with smart mixed English.
+    private func handleBroccoliTypingModeShortcut(_ event: NSEvent, client: Any!) -> Bool {
+        guard event.type == .keyDown else {
+            return false
+        }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.control), flags.contains(.option),
+            !flags.contains(.command), !flags.contains(.shift),
+            let key = event.charactersIgnoringModifiers?.lowercased()
+        else {
+            return false
+        }
+        let target: Int
+        switch key {
+        case "e":
+            target = 1
+        case "b":
+            target = 2
+        default:
+            return false
+        }
+        setBroccoliTypingMode(Preferences.broccoliTypingMode == target ? 0 : target, client: client)
+        return true
+    }
+
+    private func setBroccoliTypingMode(_ mode: Int, client: Any?) {
+        if let client, !(state is InputState.Empty) {
+            commitComposition(client)
+        }
+        Preferences.broccoliTypingMode = mode
+        keyHandler.clear()
+        if let client {
+            handle(state: InputState.Empty(), client: client)
+        }
+        let message: String
+        switch mode {
+        case 1:
+            message = "純英文模式（⌃⌥E 回到中英混打）"
+        case 2:
+            message = "注音符號輸出模式（⌃⌥B 回到中英混打）"
+        default:
+            message = "中英混打模式"
+        }
+        NotifierController.notify(message: message)
+    }
+
+    /// Returns true when the key should be swallowed because keys are being
+    /// mashed (a cat, a toddler). Only printable keys without Command or
+    /// Control are counted, so shortcuts and editing keys always work.
+    private func shouldSwallowMashedKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown else {
+            return false
+        }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags.contains(.command) || flags.contains(.control) {
+            return false
+        }
+        guard let scalar = event.characters?.unicodeScalars.first,
+            scalar.value > 0x20, scalar.value != 0x7F, scalar.value < 0xF700
+        else {
+            return false
+        }
+        let result = LanguageModelManager.feedTypingGuard(
+            withTimestamp: event.timestamp, keyCode: Int(event.keyCode), isRepeat: event.isARepeat)
+        if result == 2 {
+            NotifierController.notify(message: "偵測到連續亂按，暫停輸入一下")
+        }
+        return result != 0
+    }
+
+    @objc func selectMixedTypingMode(_ sender: Any?) {
+        setBroccoliTypingMode(0, client: currentClient)
+    }
+
+    @objc func selectEnglishTypingMode(_ sender: Any?) {
+        setBroccoliTypingMode(1, client: currentClient)
+    }
+
+    @objc func selectBopomofoSymbolTypingMode(_ sender: Any?) {
+        setBroccoliTypingMode(2, client: currentClient)
+    }
+
+    @objc func toggleSmartMixedAutoSpacing(_ sender: Any?) {
+        Preferences.smartMixedAutoSpacingEnabled = !Preferences.smartMixedAutoSpacingEnabled
+        NotifierController.notify(
+            message: Preferences.smartMixedAutoSpacingEnabled ? "中英自動空格：開" : "中英自動空格：關")
+    }
+
+    @objc func toggleTypingGuard(_ sender: Any?) {
+        Preferences.typingGuardEnabled = !Preferences.typingGuardEnabled
+        LanguageModelManager.resetTypingGuard()
+        NotifierController.notify(
+            message: Preferences.typingGuardEnabled ? "防誤觸：開" : "防誤觸：關")
+    }
+
+    @objc func clearBroccoliLearning(_ sender: Any?) {
+        LanguageModelManager.clearUserOverrideModels()
+        LanguageModelManager.clearSmartMixedLearnedChoices()
+        NotifierController.notify(message: "已清除選字記憶與中英學習紀錄")
     }
 
     private func handleSmartUserPhraseShortcut(_ event: NSEvent, client: Any!) -> Bool {
@@ -656,7 +803,11 @@ extension McBopomofoInputMethodController {
             return OpenCCBridge.shared.convertToSimplified(text) ?? ""
         }
 
-        let buffer = convertToSimplifiedChineseIfRequired(text)
+        var buffer = convertToSimplifiedChineseIfRequired(text)
+        // T03: "用API呼叫" -> "用 API 呼叫" within the committed text.
+        if Preferences.smartMixedInputEnabled && Preferences.smartMixedAutoSpacingEnabled {
+            buffer = LanguageModelManager.applyAutoSpacing(buffer)
+        }
         if buffer.isEmpty {
             return
         }

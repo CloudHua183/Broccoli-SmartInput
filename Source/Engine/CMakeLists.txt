@@ -22,6 +22,10 @@ add_library(McBopomofoLMLib
         ParselessLM.h
         PhraseReplacementMap.h
         PhraseReplacementMap.cpp
+        SmartMixed.h
+        SmartMixed.cpp
+        TextAssist.h
+        TextAssist.cpp
         UTF8Helper.h
         UTF8Helper.cpp
         UserOverrideModel.h
@@ -30,6 +34,9 @@ add_library(McBopomofoLMLib
         UserPhrasesLM.cpp
         VariantAnnotator.h
         VariantAnnotator.cpp)
+
+# SmartMixed.cpp analyses key runs with the Mandarin reading buffer.
+target_link_libraries(McBopomofoLMLib MandarinLib)
 
 if (ENABLE_CLANG_TIDY)
     set_target_properties(McBopomofoLMLib PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
@@ -74,13 +81,20 @@ if (ENABLE_TEST)
                 ParselessLMTest.cpp
                 ParselessPhraseDBTest.cpp
                 PhraseReplacementMapTest.cpp
+                SmartMixedTest.cpp
+                TextAssistTest.cpp
                 UTF8HelperTest.cpp
                 UserOverrideModelTest.cpp
                 UserPhrasesLMTest.cpp
                 VariantAnnotatorTest.cpp)
-        target_link_libraries(McBopomofoLMLibTest GTest::gtest_main McBopomofoLMLib gramambular2_lib)
+        target_link_libraries(McBopomofoLMLibTest GTest::gtest_main McBopomofoLMLib gramambular2_lib MandarinLib)
         include(GoogleTest)
         gtest_discover_tests(McBopomofoLMLibTest)
+
+        # Offline evaluation of the smart mixed classifier (A8); see
+        # Source/Tools/smart_mixed/eval.py.
+        add_executable(SmartMixedEval SmartMixedEval.cpp)
+        target_link_libraries(SmartMixedEval McBopomofoLMLib MandarinLib)
 
         add_custom_target(
                 runMcBopomofoLMLibTest

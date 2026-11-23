@@ -894,6 +894,146 @@ class KeyHandlerBopomofoTests: XCTestCase {
         XCTAssertTrue(state is InputState.Empty, "\(state)")
     }
 
+    // MARK: - Broccoli SmartInput: smart mixed classifier, Tab, revert, modes
+
+    private func pressTab(state: inout InputState) {
+        var currentState = state
+        let input = KeyHandlerInput(
+            inputText: "\t", keyCode: KeyCode.tab.rawValue, charCode: 9, flags: [],
+            isVerticalMode: false)
+        handler.handle(input: input, state: currentState) { newState in
+            currentState = newState
+        } errorCallback: {
+        }
+        state = currentState
+    }
+
+    func testSmartMixedConvertsShortLowercaseEnglishWord() {
+        Preferences.associatedPhrasesEnabled = false
+        // "test" is neither whitelisted nor six letters long; the v1.2.1 rules
+        // left it as Bopomofo.
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("test", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好test")
+        }
+    }
+
+    func testSmartMixedKeepsDictionaryWordGoingAfterConversion() {
+        Preferences.associatedPhrasesEnabled = false
+        // v1.2.1 converted "meeting" and then dropped the "s" back into
+        // Bopomofo because only whitelist words could continue.
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("meetings", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好meetings")
+        }
+    }
+
+    func testSmartMixedTabTurnsRealSyllableIntoEnglish() {
+        Preferences.associatedPhrasesEnabled = false
+        defer { LanguageModelManager.clearSmartMixedLearnedChoices() }
+        // "go" spells ㄕㄟ, a real syllable, so it stays Bopomofo until Tab.
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("go", state: &state)
+        if let inputting = state as? InputState.Inputting {
+            XCTAssertEqual(inputting.composingBuffer, "你好ㄕㄟ")
+        } else {
+            XCTFail("\(state)")
+        }
+
+        pressTab(state: &state)
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好go")
+        }
+    }
+
+    func testSmartMixedTabCompletesEnglishWithCanonicalCasing() {
+        Preferences.associatedPhrasesEnabled = false
+        defer { LanguageModelManager.clearSmartMixedLearnedChoices() }
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("github", state: &state)
+        pressTab(state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertEqual(state.composingBuffer, "你好GitHub")
+        }
+    }
+
+    func testSmartMixedToneKeyRevertsAutomaticConversion() {
+        Preferences.associatedPhrasesEnabled = false
+        defer { LanguageModelManager.clearSmartMixedLearnedChoices() }
+        // "api" converts on its own (whitelist), but a tone key right after it
+        // means the keys were ㄇㄛ after all.
+        var state: InputState = InputState.Empty()
+        handle("su3cl3", state: &state)
+        handle("api", state: &state)
+        handle("3", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertTrue(state.composingBuffer.hasPrefix("你好"), state.composingBuffer)
+            XCTAssertFalse(state.composingBuffer.contains("api"), state.composingBuffer)
+            XCTAssertEqual(state.composingBuffer.count, 3, state.composingBuffer)
+        }
+
+        // The choice is remembered: "api" now stays Bopomofo.
+        var again: InputState = InputState.Empty()
+        handler.clear()
+        handle("su3cl3", state: &again)
+        handle("api", state: &again)
+        if let again = again as? InputState.Inputting {
+            XCTAssertFalse(again.composingBuffer.contains("api"), again.composingBuffer)
+        }
+    }
+
+    func testSmartMixedFirstToneSyllableDoesNotLeakLettersIntoNextOne() {
+        Preferences.associatedPhrasesEnabled = false
+        // 吃 is "t" + Space; its letter must not join the next syllable's run.
+        var state: InputState = InputState.Empty()
+        handle("t ", state: &state)
+        handle("ji3", state: &state)
+
+        XCTAssertTrue(state is InputState.Inputting, "\(state)")
+        if let state = state as? InputState.Inputting {
+            XCTAssertFalse(state.composingBuffer.contains("t"), state.composingBuffer)
+            XCTAssertEqual(state.composingBuffer.count, 2, state.composingBuffer)
+        }
+    }
+
+    func testBopomofoSymbolTypingModeCommitsSyllables() {
+        let mode = Preferences.broccoliTypingMode
+        Preferences.broccoliTypingMode = 2
+        defer { Preferences.broccoliTypingMode = mode }
+
+        var committed = ""
+        var state: InputState = InputState.Empty()
+        for key in "su3".map(String.init) {
+            let input = KeyHandlerInput(
+                inputText: key, keyCode: 0, charCode: charCode(key), flags: [],
+                isVerticalMode: false)
+            handler.handle(input: input, state: state) { newState in
+                if let committing = newState as? InputState.Committing {
+                    committed += committing.poppedText
+                }
+                state = newState
+            } errorCallback: {
+            }
+        }
+        XCTAssertEqual(committed, "ㄋㄧˇ")
+        XCTAssertTrue(state is InputState.Empty, "\(state)")
+    }
+
     func testPunctuationTable() {
         let enabled = Preferences.halfWidthPunctuationEnabled
         Preferences.halfWidthPunctuationEnabled = false

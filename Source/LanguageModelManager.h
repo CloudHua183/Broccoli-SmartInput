@@ -44,6 +44,24 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)smartMixedSystemDictionaryASCIIWordMatches:(NSString *)phrase;
 + (BOOL)userASCIIPhraseHasPrefix:(NSString *)prefix;
 
+// Broccoli SmartInput: smart mixed input data (A1, A6).
++ (void)preloadSmartMixedDictionary;
++ (void)invalidateSmartMixedKnownWords;
++ (void)recordSmartMixedASCIIChoice:(NSString *)word;
++ (void)recordSmartMixedBopomofoChoice:(NSString *)run;
++ (void)clearSmartMixedLearnedChoices;
+
+// Broccoli SmartInput: persisted selection memory (T07).
++ (void)loadUserOverrideModels;
++ (void)saveUserOverrideModels;
++ (void)clearUserOverrideModels;
+
+// Broccoli SmartInput: text helpers (T03, T09).
++ (NSString *)applyAutoSpacing:(NSString *)text;
+/// 0 = allow the key, 1 = swallow it, 2 = swallow it; the guard just engaged.
++ (NSInteger)feedTypingGuardWithTimestamp:(NSTimeInterval)timestamp keyCode:(NSInteger)keyCode isRepeat:(BOOL)isRepeat;
++ (void)resetTypingGuard;
+
 + (void)loadCandidateOrder;
 + (BOOL)writeCandidateOrderForReading:(NSString *)reading values:(NSArray<NSString *> *)values;
 
@@ -57,6 +75,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (class, readonly, nonatomic) NSString *phraseReplacementDataPathMcBopomofo;
 @property (class, readonly, nonatomic) NSString *smartMixedASCIIWordsDataPath;
 @property (class, readonly, nonatomic) NSString *candidateOrderDataPath;
+@property (class, readonly, nonatomic) NSString *smartMixedLearnedChoicesDataPath;
+@property (class, readonly, nonatomic) NSString *userOverrideModelDataPath;
+@property (class, readonly, nonatomic) NSString *longTermUserOverrideModelDataPath;
 @property (class, assign, nonatomic) BOOL phraseReplacementEnabled;
 
 @end

@@ -80,6 +80,9 @@
 		D47D73C327A7200500255A50 /* FSEventStreamHelper in Frameworks */ = {isa = PBXBuildFile; productRef = D47D73C227A7200500255A50 /* FSEventStreamHelper */; };
 		D47F7DD0278C0897002F9DD7 /* NonModalAlertWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */; };
 		D47F7DD3278C1263002F9DD7 /* UserOverrideModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */; };
+		AA0000030000000000000001 /* SmartMixed.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA0000030000000000000002 /* SmartMixed.cpp */; };
+		AA0000030000000000000004 /* TextAssist.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA0000030000000000000005 /* TextAssist.cpp */; };
+		AA0000030000000000000007 /* smart-mixed-english-lexicon.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA0000030000000000000008 /* smart-mixed-english-lexicon.txt */; };
 		D485D3B92796A8A000657FF3 /* PreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D485D3B82796A8A000657FF3 /* PreferencesTests.swift */; };
 		D485D3C02796CE3200657FF3 /* VersionUpdateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D485D3BF2796CE3200657FF3 /* VersionUpdateTests.swift */; };
 		D48F853E2EACDB6C00C2FDAB /* RomanNumbers in Frameworks */ = {isa = PBXBuildFile; productRef = D48F853D2EACDB6C00C2FDAB /* RomanNumbers */; };
@@ -230,6 +233,11 @@
 		D47F7DCF278C0897002F9DD7 /* NonModalAlertWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonModalAlertWindowController.swift; sourceTree = "<group>"; };
 		D47F7DD1278C1263002F9DD7 /* UserOverrideModel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UserOverrideModel.h; sourceTree = "<group>"; };
 		D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = UserOverrideModel.cpp; sourceTree = "<group>"; };
+		AA0000030000000000000002 /* SmartMixed.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SmartMixed.cpp; sourceTree = "<group>"; };
+		AA0000030000000000000003 /* SmartMixed.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SmartMixed.h; sourceTree = "<group>"; };
+		AA0000030000000000000005 /* TextAssist.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TextAssist.cpp; sourceTree = "<group>"; };
+		AA0000030000000000000006 /* TextAssist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TextAssist.h; sourceTree = "<group>"; };
+		AA0000030000000000000008 /* smart-mixed-english-lexicon.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "smart-mixed-english-lexicon.txt"; sourceTree = "<group>"; };
 		D485D3B62796A8A000657FF3 /* McBopomofoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = McBopomofoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D485D3B82796A8A000657FF3 /* PreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesTests.swift; sourceTree = "<group>"; };
 		D485D3BF2796CE3200657FF3 /* VersionUpdateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionUpdateTests.swift; sourceTree = "<group>"; };
@@ -388,6 +396,10 @@
 				D44FB74C2792189A003C80A6 /* PhraseReplacementMap.h */,
 				D47F7DD2278C1263002F9DD7 /* UserOverrideModel.cpp */,
 				D47F7DD1278C1263002F9DD7 /* UserOverrideModel.h */,
+				AA0000030000000000000002 /* SmartMixed.cpp */,
+				AA0000030000000000000003 /* SmartMixed.h */,
+				AA0000030000000000000005 /* TextAssist.cpp */,
+				AA0000030000000000000006 /* TextAssist.h */,
 				D41355DC278EA3ED005E5CBD /* UserPhrasesLM.cpp */,
 				D41355DD278EA3ED005E5CBD /* UserPhrasesLM.h */,
 				6ADF5B162BA513E000577D98 /* UTF8Helper.cpp */,
@@ -434,6 +446,7 @@
 				6A38BBF615FC117A00A8A51F /* data.txt */,
 				6AD7CBC715FE555000691B5B /* data-plain-bpmf.txt */,
 				AA0000020000000000000002 /* smart-mixed-ascii-words.txt */,
+				AA0000030000000000000008 /* smart-mixed-english-lexicon.txt */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -687,6 +700,7 @@
 				D4E33D8F27A838F0006DB1CF /* InfoPlist.strings in Resources */,
 				6A38BC1515FC117A00A8A51F /* data.txt in Resources */,
 				AA0000020000000000000001 /* smart-mixed-ascii-words.txt in Resources */,
+				AA0000030000000000000007 /* smart-mixed-english-lexicon.txt in Resources */,
 				6A6ED16B2797650A0012872E /* template-phrases-replacement.txt in Resources */,
 				6AFF97F2253B299E007F1C49 /* NonModalAlertWindowController.xib in Resources */,
 				D4EE675A2B39968900F062DE /* dictionary_service.json in Resources */,
@@ -754,6 +768,8 @@
 				D456576E279E4F7B00DF6BC9 /* KeyHandlerInput.swift in Sources */,
 				D41355DB278E6D17005E5CBD /* McBopomofoLM.cpp in Sources */,
 				D47F7DD3278C1263002F9DD7 /* UserOverrideModel.cpp in Sources */,
+				AA0000030000000000000001 /* SmartMixed.cpp in Sources */,
+				AA0000030000000000000004 /* TextAssist.cpp in Sources */,
 				6A0D4F4515FC0EB100ABF4B3 /* Mandarin.cpp in Sources */,
 				6ACC3D452793701600F1B140 /* ParselessLM.cpp in Sources */,
 				D4CB1A5B2B389B78006EA984 /* DictionaryService.swift in Sources */,
@@ -1331,7 +1347,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.2.1;
+				CURRENT_PROJECT_VERSION = 1.3.0;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -1350,7 +1366,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cerence.McBopomofoTests;
@@ -1383,7 +1399,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1.2.1;
+				CURRENT_PROJECT_VERSION = 1.3.0;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1397,7 +1413,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.cerence.McBopomofoTests;

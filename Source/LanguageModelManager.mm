@@ -27,6 +27,11 @@
 
 #include "UTF8Helper.h"
 #include "AssociatedPhrasesV2.h"
+#include "SmartMixed.h"
+#include "TextAssist.h"
+
+#include <memory>
+#include <mutex>
 
 @import OpenCCBridge;
 
@@ -36,6 +41,28 @@ static const double kObservedOverrideHalflife = 5400.0; // 1.5 hr.
 static McBopomofo::McBopomofoLM gLanguageModelMcBopomofo;
 static McBopomofo::McBopomofoLM gLanguageModelPlainBopomofo;
 static McBopomofo::UserOverrideModel gUserOverrideModel(kUserOverrideModelCapacity, kObservedOverrideHalflife);
+
+// Broccoli SmartInput (T07): a second, slow-decaying model so a correction made
+// today is still remembered next week. The short-term model above keeps the
+// upstream behaviour; both are saved to disk so a restart loses neither.
+static const int kLongTermUserOverrideModelCapacity = 2000;
+static const double kLongTermObservedOverrideHalflife = 7.0 * 24.0 * 3600.0; // 1 week.
+static McBopomofo::UserOverrideModel gLongTermUserOverrideModel(kLongTermUserOverrideModelCapacity, kLongTermObservedOverrideHalflife);
+static BOOL gUserOverrideModelsLoaded = NO;
+
+// Broccoli SmartInput (A1): smart mixed word lists live in memory. The known
+// words (whitelists + user ASCII phrases) are rebuilt only when their files
+// change; the English dictionary loads once, off the main thread.
+static std::mutex gSmartMixedDictionaryMutex;
+static std::shared_ptr<const McBopomofo::SmartMixed::Lexicon> gSmartMixedDictionary;
+static std::shared_ptr<const McBopomofo::SmartMixed::Lexicon> gSmartMixedKnownWords;
+static BOOL gSmartMixedKnownWordsDirty = YES;
+static CFAbsoluteTime gSmartMixedKnownWordsLastCheck = 0;
+static NSTimeInterval gSmartMixedLocalWordsModified = 0;
+static NSTimeInterval gSmartMixedUserPhrasesModified = 0;
+static McBopomofo::SmartMixed::LearnedChoices gSmartMixedLearnedChoices;
+static BOOL gSmartMixedLearnedChoicesLoaded = NO;
+static McBopomofo::TextAssist::TypingGuard gTypingGuard;
 static McBopomofo::VariantAnnotator gVariantAnnotator;
 
 static NSString *const kUserDataTemplateName = @"template-data";
@@ -56,37 +83,46 @@ static NSCharacterSet *SmartMixedASCIILettersAndDigits()
     return set;
 }
 
-static void LoadSmartMixedSystemDictionary(NSMutableSet<NSString *> **words, NSMutableSet<NSString *> **prefixes)
+static NSTimeInterval SmartMixedModificationTime(NSString *path)
 {
-    static NSMutableSet<NSString *> *cachedWords = nil;
-    static NSMutableSet<NSString *> *cachedPrefixes = nil;
+    NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+    NSDate *date = attributes[NSFileModificationDate];
+    return date != nil ? date.timeIntervalSince1970 : 0;
+}
+
+static NSString *SmartMixedReadFile(NSString *path)
+{
+    if (path == nil) {
+        return nil;
+    }
+    return [[NSString alloc] initWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+}
+
+static BOOL SmartMixedWriteFile(NSString *content, NSString *path)
+{
+    NSError *error = nil;
+    BOOL written = [content writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    if (!written) {
+        NSLog(@"Failed to write %@: %@", path, error);
+    }
+    return written;
+}
+
+// Unit tests run inside the real input method's container; they must not
+// overwrite what the user has learned.
+static BOOL BroccoliIsRunningUnitTests()
+{
+    return NSClassFromString(@"XCTestCase") != nil;
+}
+
+static dispatch_queue_t BroccoliPersistenceQueue()
+{
+    static dispatch_queue_t queue;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        cachedWords = [[NSMutableSet alloc] init];
-        cachedPrefixes = [[NSMutableSet alloc] init];
-
-        NSString *content = [[NSString alloc] initWithContentsOfFile:@"/usr/share/dict/words"
-                                                            encoding:NSUTF8StringEncoding
-                                                               error:nil];
-        NSArray<NSString *> *lines = [content componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
-        NSCharacterSet *allowedSet = SmartMixedASCIILettersAndDigits();
-        for (NSString *line in lines) {
-            NSString *word = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].lowercaseString;
-            if (word.length < 3 || [word rangeOfCharacterFromSet:allowedSet.invertedSet].location != NSNotFound) {
-                continue;
-            }
-            [cachedWords addObject:word];
-            if (word.length <= 3) {
-                continue;
-            }
-            for (NSUInteger length = 2; length < word.length; ++length) {
-                [cachedPrefixes addObject:[word substringToIndex:length]];
-            }
-        }
+        queue = dispatch_queue_create("org.broccoli.smartinput.persistence", DISPATCH_QUEUE_SERIAL);
     });
-
-    *words = cachedWords;
-    *prefixes = cachedPrefixes;
+    return queue;
 }
 
 @implementation LanguageModelManager
@@ -129,6 +165,7 @@ static void LTLoadVariantAnnotatorData()
 
 + (void)loadDataModels
 {
+    [self preloadSmartMixedDictionary];
     if (!gLanguageModelMcBopomofo.isDataModelLoaded()) {
         LTLoadLanguageModelFile(@"data", gLanguageModelMcBopomofo);
     }
@@ -149,6 +186,7 @@ static void LTLoadVariantAnnotatorData()
 
 + (void)loadDataModel:(InputMode)mode
 {
+    [self preloadSmartMixedDictionary];
     if ([mode isEqualToString:InputModeBopomofo]) {
         if (!gLanguageModelMcBopomofo.isDataModelLoaded()) {
             LTLoadLanguageModelFile(@"data", gLanguageModelMcBopomofo);
@@ -176,6 +214,7 @@ static void LTLoadVariantAnnotatorData()
 
 + (void)loadUserPhrasesWithPlainBopomofoEnabled:(BOOL)userPhraseForPlainBopomofo
 {
+    gSmartMixedKnownWordsDirty = YES;
     gLanguageModelMcBopomofo.loadUserPhrases([self userPhrasesDataPathMcBopomofo].UTF8String, [self excludedPhrasesDataPathMcBopomofo].UTF8String);
     gLanguageModelPlainBopomofo.loadUserPhrases(userPhraseForPlainBopomofo ? [self userPhrasesDataPathPlainBopomofo].UTF8String : NULL,
         [self excludedPhrasesDataPathPlainBopomofo].UTF8String);
@@ -704,36 +743,33 @@ static void LTLoadVariantAnnotatorData()
 
 + (BOOL)smartMixedASCIIPhraseHasPrefix:(NSString *)prefix
 {
-    return [self bundledSmartMixedASCIIWordHasPrefix:prefix] || [self localSmartMixedASCIIWordHasPrefix:prefix] || [self userASCIIPhraseHasPrefix:prefix];
+    auto known = [self smartMixedKnownWords];
+    return prefix.length > 0 && known != nullptr && known->hasPrefix(prefix.UTF8String);
 }
 
 + (BOOL)smartMixedASCIIPhraseMatches:(NSString *)phrase
 {
-    return [self bundledSmartMixedASCIIWordMatches:phrase] || [self localSmartMixedASCIIWordMatches:phrase] || [self userASCIIPhraseMatches:phrase];
+    auto known = [self smartMixedKnownWords];
+    return phrase.length > 0 && known != nullptr && known->contains(phrase.UTF8String);
 }
 
 + (BOOL)smartMixedSystemDictionaryASCIIWordHasPrefix:(NSString *)prefix
 {
-    if (prefix.length < 2 || [prefix rangeOfCharacterFromSet:SmartMixedASCIILettersAndDigits().invertedSet].location != NSNotFound) {
+    // Now backed by the bundled English lexicon instead of /usr/share/dict/words.
+    if (prefix.length < 2) {
         return NO;
     }
-
-    NSMutableSet<NSString *> *words = nil;
-    NSMutableSet<NSString *> *prefixes = nil;
-    LoadSmartMixedSystemDictionary(&words, &prefixes);
-    return [prefixes containsObject:prefix.lowercaseString];
+    auto dictionary = [self smartMixedDictionary];
+    return dictionary != nullptr && dictionary->hasProperPrefix(prefix.UTF8String);
 }
 
 + (BOOL)smartMixedSystemDictionaryASCIIWordMatches:(NSString *)phrase
 {
-    if (phrase.length < 3 || [phrase rangeOfCharacterFromSet:SmartMixedASCIILettersAndDigits().invertedSet].location != NSNotFound) {
+    if (phrase.length < 3) {
         return NO;
     }
-
-    NSMutableSet<NSString *> *words = nil;
-    NSMutableSet<NSString *> *prefixes = nil;
-    LoadSmartMixedSystemDictionary(&words, &prefixes);
-    return [words containsObject:phrase.lowercaseString];
+    auto dictionary = [self smartMixedDictionary];
+    return dictionary != nullptr && dictionary->contains(phrase.UTF8String);
 }
 
 + (BOOL)writeUserPhrase:(NSString *)userPhrase
@@ -844,6 +880,7 @@ static void LTLoadVariantAnnotatorData()
 
 + (McBopomofo::UserOverrideModel *)userOverrideModel
 {
+    [self loadUserOverrideModels];
     return &gUserOverrideModel;
 }
 
@@ -889,5 +926,249 @@ static void LTLoadVariantAnnotatorData()
     return [[NSString alloc] initWithUTF8String:result.annotatedString.c_str()];
 }
 
+
+
+#pragma mark - Broccoli SmartInput: smart mixed word lists (A1, A2)
+
++ (void)invalidateSmartMixedKnownWords
+{
+    gSmartMixedKnownWordsDirty = YES;
+}
+
++ (std::shared_ptr<const McBopomofo::SmartMixed::Lexicon>)smartMixedKnownWords
+{
+    // Called on every smart mixed keystroke: a cheap time check, then at most
+    // two stat() calls every couple of seconds. Files are read only when they
+    // actually changed.
+    CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+    if (!gSmartMixedKnownWordsDirty && gSmartMixedKnownWords != nullptr && now - gSmartMixedKnownWordsLastCheck < 2.0) {
+        return gSmartMixedKnownWords;
+    }
+    gSmartMixedKnownWordsLastCheck = now;
+
+    NSString *localPath = [self smartMixedASCIIWordsDataPath];
+    NSString *userPath = [self userPhrasesDataPathMcBopomofo];
+    NSTimeInterval localModified = SmartMixedModificationTime(localPath);
+    NSTimeInterval userModified = SmartMixedModificationTime(userPath);
+    if (!gSmartMixedKnownWordsDirty && gSmartMixedKnownWords != nullptr &&
+        localModified == gSmartMixedLocalWordsModified && userModified == gSmartMixedUserPhrasesModified) {
+        return gSmartMixedKnownWords;
+    }
+
+    auto lexicon = std::make_shared<McBopomofo::SmartMixed::Lexicon>();
+    Class cls = NSClassFromString(@"McBopomofoInputMethodController");
+    NSString *bundledPath = [[NSBundle bundleForClass:cls] pathForResource:@"smart-mixed-ascii-words" ofType:@"txt"];
+    for (NSString *path in @[ (bundledPath != nil ? bundledPath : @""), localPath ]) {
+        NSString *content = SmartMixedReadFile(path.length ? path : nil);
+        if (content != nil) {
+            lexicon->addLines(content.UTF8String, McBopomofo::SmartMixed::kWhitelistTier);
+        }
+    }
+    NSString *userPhrases = SmartMixedReadFile(userPath);
+    for (NSString *line in [userPhrases componentsSeparatedByString:@"\n"]) {
+        NSString *trimmed = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (trimmed.length == 0 || [trimmed hasPrefix:@"#"]) {
+            continue;
+        }
+        NSArray<NSString *> *components = [trimmed componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        if (components.count >= 2) {
+            // add() ignores anything that is not ASCII letters and digits.
+            lexicon->add(components[0].UTF8String, McBopomofo::SmartMixed::kWhitelistTier);
+        }
+    }
+    lexicon->finalize();
+
+    gSmartMixedKnownWords = lexicon;
+    gSmartMixedLocalWordsModified = localModified;
+    gSmartMixedUserPhrasesModified = userModified;
+    gSmartMixedKnownWordsDirty = NO;
+    return gSmartMixedKnownWords;
+}
+
++ (void)preloadSmartMixedDictionary
+{
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class cls = NSClassFromString(@"McBopomofoInputMethodController");
+        NSString *path = [[NSBundle bundleForClass:cls] pathForResource:@"smart-mixed-english-lexicon" ofType:@"txt"];
+        if (path == nil) {
+            NSLog(@"Smart mixed English lexicon is missing from the bundle");
+            return;
+        }
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            NSString *content = SmartMixedReadFile(path);
+            auto lexicon = std::make_shared<McBopomofo::SmartMixed::Lexicon>();
+            if (content != nil) {
+                lexicon->addLines(content.UTF8String, McBopomofo::SmartMixed::kDefaultTier);
+            }
+            lexicon->finalize();
+            std::lock_guard<std::mutex> lock(gSmartMixedDictionaryMutex);
+            gSmartMixedDictionary = lexicon;
+        });
+    });
+}
+
++ (std::shared_ptr<const McBopomofo::SmartMixed::Lexicon>)smartMixedDictionary
+{
+    [self preloadSmartMixedDictionary];
+    std::lock_guard<std::mutex> lock(gSmartMixedDictionaryMutex);
+    // nullptr until the background load finishes; callers treat that as "no
+    // dictionary evidence" rather than waiting.
+    return gSmartMixedDictionary;
+}
+
+#pragma mark - Broccoli SmartInput: learned smart mixed choices (A6)
+
++ (NSString *)smartMixedLearnedChoicesDataPath
+{
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"smart-mixed-learned.txt"];
+}
+
++ (const McBopomofo::SmartMixed::LearnedChoices *)smartMixedLearnedChoices
+{
+    if (!gSmartMixedLearnedChoicesLoaded) {
+        gSmartMixedLearnedChoicesLoaded = YES;
+        if (BroccoliIsRunningUnitTests()) {
+            return &gSmartMixedLearnedChoices;
+        }
+        NSString *content = SmartMixedReadFile([self smartMixedLearnedChoicesDataPath]);
+        if (content != nil) {
+            gSmartMixedLearnedChoices.load(content.UTF8String);
+        }
+    }
+    return &gSmartMixedLearnedChoices;
+}
+
++ (void)saveSmartMixedLearnedChoices
+{
+    if (BroccoliIsRunningUnitTests() || ![self checkIfUserDataFolderExists]) {
+        return;
+    }
+    NSString *content = [NSString stringWithUTF8String:gSmartMixedLearnedChoices.serialize().c_str()];
+    NSString *path = [self smartMixedLearnedChoicesDataPath];
+    dispatch_async(BroccoliPersistenceQueue(), ^{
+        SmartMixedWriteFile(content, path);
+    });
+}
+
++ (void)recordSmartMixedASCIIChoice:(NSString *)word
+{
+    [self smartMixedLearnedChoices];
+    if (gSmartMixedLearnedChoices.prefersASCII(word.UTF8String)) {
+        return;
+    }
+    gSmartMixedLearnedChoices.recordASCII(word.UTF8String);
+    [self saveSmartMixedLearnedChoices];
+}
+
++ (void)recordSmartMixedBopomofoChoice:(NSString *)run
+{
+    [self smartMixedLearnedChoices];
+    if (gSmartMixedLearnedChoices.prefersBopomofo(run.UTF8String)) {
+        return;
+    }
+    gSmartMixedLearnedChoices.recordBopomofo(run.UTF8String);
+    [self saveSmartMixedLearnedChoices];
+}
+
++ (void)clearSmartMixedLearnedChoices
+{
+    gSmartMixedLearnedChoicesLoaded = YES;
+    gSmartMixedLearnedChoices.clear();
+    [self saveSmartMixedLearnedChoices];
+}
+
+#pragma mark - Broccoli SmartInput: persisted user override models (T07)
+
++ (NSString *)userOverrideModelDataPath
+{
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"user-override-model.txt"];
+}
+
++ (NSString *)longTermUserOverrideModelDataPath
+{
+    return [[self dataFolderPath] stringByAppendingPathComponent:@"user-override-model-long-term.txt"];
+}
+
++ (McBopomofo::UserOverrideModel *)longTermUserOverrideModel
+{
+    [self loadUserOverrideModels];
+    return &gLongTermUserOverrideModel;
+}
+
++ (void)loadUserOverrideModels
+{
+    if (gUserOverrideModelsLoaded) {
+        return;
+    }
+    gUserOverrideModelsLoaded = YES;
+    if (BroccoliIsRunningUnitTests()) {
+        // Keep tests independent of what this Mac has learned.
+        return;
+    }
+    NSString *shortTerm = SmartMixedReadFile([self userOverrideModelDataPath]);
+    if (shortTerm != nil) {
+        gUserOverrideModel.deserialize(shortTerm.UTF8String);
+    }
+    NSString *longTerm = SmartMixedReadFile([self longTermUserOverrideModelDataPath]);
+    if (longTerm != nil) {
+        gLongTermUserOverrideModel.deserialize(longTerm.UTF8String);
+    }
+}
+
++ (void)saveUserOverrideModels
+{
+    if (!gUserOverrideModelsLoaded || BroccoliIsRunningUnitTests() || ![self checkIfUserDataFolderExists]) {
+        return;
+    }
+    // Serialize on the calling (main) thread, which owns the models; write
+    // elsewhere so deactivating the input method never waits on the disk.
+    NSString *shortTerm = [NSString stringWithUTF8String:gUserOverrideModel.serialize().c_str()];
+    NSString *longTerm = [NSString stringWithUTF8String:gLongTermUserOverrideModel.serialize().c_str()];
+    NSString *shortTermPath = [self userOverrideModelDataPath];
+    NSString *longTermPath = [self longTermUserOverrideModelDataPath];
+    dispatch_async(BroccoliPersistenceQueue(), ^{
+        SmartMixedWriteFile(shortTerm != nil ? shortTerm : @"", shortTermPath);
+        SmartMixedWriteFile(longTerm != nil ? longTerm : @"", longTermPath);
+    });
+}
+
++ (void)clearUserOverrideModels
+{
+    gUserOverrideModelsLoaded = YES;
+    gUserOverrideModel.clear();
+    gLongTermUserOverrideModel.clear();
+    [self saveUserOverrideModels];
+}
+
+#pragma mark - Broccoli SmartInput: text helpers (T03, T09)
+
++ (NSString *)applyAutoSpacing:(NSString *)text
+{
+    if (text.length == 0) {
+        return text;
+    }
+    std::string spaced = McBopomofo::TextAssist::ApplyAutoSpacing(text.UTF8String);
+    NSString *spacedText = [NSString stringWithUTF8String:spaced.c_str()];
+    return spacedText != nil ? spacedText : text;
+}
+
++ (NSInteger)feedTypingGuardWithTimestamp:(NSTimeInterval)timestamp keyCode:(NSInteger)keyCode isRepeat:(BOOL)isRepeat
+{
+    switch (gTypingGuard.feed(timestamp, (int)keyCode, isRepeat)) {
+    case McBopomofo::TextAssist::TypingGuard::Result::kAllow:
+        return 0;
+    case McBopomofo::TextAssist::TypingGuard::Result::kBlock:
+        return 1;
+    case McBopomofo::TextAssist::TypingGuard::Result::kStartedBlocking:
+        return 2;
+    }
+    return 0;
+}
+
++ (void)resetTypingGuard
+{
+    gTypingGuard.reset();
+}
 
 @end

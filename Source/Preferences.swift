@@ -50,6 +50,9 @@ private let kPhraseReplacementEnabledKey = "PhraseReplacementEnabled"
 private let kChineseConversionStyleKey = "ChineseConversionStyle"
 private let kAssociatedPhrasesEnabledKey = "AssociatedPhrasesEnabled"
 private let kSmartMixedInputEnabledKey = "SmartMixedInputEnabled"
+private let kSmartMixedAutoSpacingEnabledKey = "SmartMixedAutoSpacingEnabled"
+private let kBroccoliTypingModeKey = "BroccoliTypingMode"
+private let kTypingGuardEnabledKey = "TypingGuardEnabled"
 private let kLetterBehaviorKey = "LetterBehavior"
 private let kControlEnterOutputKey = "ControlEnterOutput"
 private let kShiftEnterEnabledKey = "ShiftEnterEnabled"
@@ -232,6 +235,9 @@ class Preferences: NSObject {
             kChineseConversionStyleKey,
             kAssociatedPhrasesEnabledKey,
             kSmartMixedInputEnabledKey,
+            kSmartMixedAutoSpacingEnabledKey,
+            kBroccoliTypingModeKey,
+            kTypingGuardEnabledKey,
             kControlEnterOutputKey,
             kShiftEnterEnabledKey,
             kRepeatedPunctuationToSelectCandidateEnabledKey,
@@ -258,6 +264,9 @@ class Preferences: NSObject {
         Preferences.phraseReplacementEnabled = Preferences.phraseReplacementEnabled
         Preferences.associatedPhrasesEnabled = Preferences.associatedPhrasesEnabled
         Preferences.smartMixedInputEnabled = Preferences.smartMixedInputEnabled
+        Preferences.smartMixedAutoSpacingEnabled = Preferences.smartMixedAutoSpacingEnabled
+        Preferences.broccoliTypingMode = Preferences.broccoliTypingMode
+        Preferences.typingGuardEnabled = Preferences.typingGuardEnabled
         Preferences.letterBehavior = Preferences.letterBehavior
         Preferences.controlEnterOutput = Preferences.controlEnterOutput
         Preferences.shiftEnterEnabled = Preferences.shiftEnterEnabled
@@ -460,6 +469,20 @@ extension Preferences {
         return smartMixedInputEnabled
     }
 
+    /// Broccoli SmartInput (T03): put a half-width space between Chinese and
+    /// English or digits when text is committed.
+    @UserDefault(key: kSmartMixedAutoSpacingEnabledKey, defaultValue: true)
+    @objc static var smartMixedAutoSpacingEnabled: Bool
+
+    /// Broccoli SmartInput (T05): 0 = Chinese with smart mixed English,
+    /// 1 = English only (keys pass straight to the app), 2 = Bopomofo symbols.
+    @UserDefault(key: kBroccoliTypingModeKey, defaultValue: 0)
+    @objc static var broccoliTypingMode: Int
+
+    /// Broccoli SmartInput (T09): pause input when keys are mashed.
+    @UserDefault(key: kTypingGuardEnabledKey, defaultValue: false)
+    @objc static var typingGuardEnabled: Bool
+
     @UserDefault(key: kShiftEnterEnabledKey, defaultValue: true)
     @objc static var shiftEnterEnabled: Bool
 
@@ -659,6 +682,13 @@ extension Preferences {
         )
         lines.append(
             "  - Smart Mixed Input: \(Preferences.smartMixedInputEnabled ? "Enabled" : "Disabled")"
+        )
+        lines.append(
+            "  - Smart Mixed Auto Spacing: \(Preferences.smartMixedAutoSpacingEnabled ? "Enabled" : "Disabled")"
+        )
+        lines.append("  - Broccoli Typing Mode: \(Preferences.broccoliTypingMode)")
+        lines.append(
+            "  - Typing Guard: \(Preferences.typingGuardEnabled ? "Enabled" : "Disabled")"
         )
         lines.append(
             "  - Associated Phrases (Plain Bopomofo): \(Preferences.enableUserPhrasesInPlainBopomofo ? "Enabled" : "Disabled")"

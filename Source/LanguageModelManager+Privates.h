@@ -25,6 +25,9 @@
 #import "McBopomofoLM.h"
 #import "UserOverrideModel.h"
 #import "VariantAnnotator.h"
+#import "SmartMixed.h"
+
+#include <memory>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -33,6 +36,14 @@ NS_ASSUME_NONNULL_BEGIN
 @property (class, readonly, nonatomic) McBopomofo::McBopomofoLM *languageModelPlainBopomofo;
 @property (class, readonly, nonatomic) McBopomofo::UserOverrideModel *userOverrideModel;
 @property (class, readonly, nonatomic) McBopomofo::VariantAnnotator *variantAnnotator;
+@property (class, readonly, nonatomic) McBopomofo::UserOverrideModel *longTermUserOverrideModel;
+
+/// Whitelists and user ASCII phrases. Main thread only.
++ (std::shared_ptr<const McBopomofo::SmartMixed::Lexicon>)smartMixedKnownWords;
+/// The bundled English lexicon, or nullptr while it is still loading.
++ (std::shared_ptr<const McBopomofo::SmartMixed::Lexicon>)smartMixedDictionary;
+/// Choices learned from Tab and from reverting conversions. Main thread only.
++ (const McBopomofo::SmartMixed::LearnedChoices *)smartMixedLearnedChoices;
 @end
 
 NS_ASSUME_NONNULL_END

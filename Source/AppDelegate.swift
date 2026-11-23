@@ -22,6 +22,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 import Cocoa
+import CryptoKit
 import FSEventStreamHelper
 import InputMethodKit
 
@@ -234,6 +235,9 @@ struct VersionUpdateApi {
     }
 }
 
+/// How many timestamped backups of each synced dictionary file to keep (A9).
+private let kSyncBackupsToKeep = 10
+
 enum BroccoliPatchError: Error, LocalizedError {
     case badURL(String)
     case missingPatchSourceConfig(String)
@@ -242,6 +246,10 @@ enum BroccoliPatchError: Error, LocalizedError {
     case fileWrite(String)
     case noReleaseAsset
     case noReleaseFound
+    /// The cloud copy changed between download and upload (A7).
+    case uploadConflict
+    /// The upload endpoint answered but refused the content.
+    case uploadRejected(String)
 
     var errorDescription: String? {
         switch self {
@@ -272,6 +280,10 @@ enum BroccoliPatchError: Error, LocalizedError {
             return "No downloadable .dmg, .pkg, or .zip asset was found in the latest GitHub release."
         case .noReleaseFound:
             return "No GitHub release was found."
+        case .uploadConflict:
+            return "雲端詞庫在同步期間被另一台電腦更新了，請再同步一次。"
+        case .uploadRejected(let message):
+            return "雲端回寫被拒絕：\(message)"
         }
     }
 }
@@ -511,6 +523,16 @@ enum BroccoliPatchManager {
     }
 
     static func syncDictionaries() throws -> BroccoliPatchSyncReport {
+        // A7: if another Mac uploaded between our download and our upload,
+        // merge again against the newer cloud copy instead of overwriting it.
+        do {
+            return try syncDictionariesOnce()
+        } catch BroccoliPatchError.uploadConflict {
+            return try syncDictionariesOnce()
+        }
+    }
+
+    private static func syncDictionariesOnce() throws -> BroccoliPatchSyncReport {
         guard LanguageModelManager.checkIfUserLanguageModelFilesExist() else {
             throw BroccoliPatchError.fileWrite("Cannot create or access \(LanguageModelManager.dataFolderPath).")
         }
@@ -540,7 +562,7 @@ enum BroccoliPatchManager {
 
         var report = BroccoliPatchSyncReport()
         if let smartWordsUploadURL = source.smartMixedASCIIWordsUploadURL {
-            try uploadText(mergedSmartWords, to: smartWordsUploadURL)
+            try uploadText(mergedSmartWords, to: smartWordsUploadURL, baseHash: contentHash(smartWords))
             report.uploadedFiles.append(LanguageModelManager.smartMixedASCIIWordsDataPath)
         }
         try writeSyncedFile(mergedSmartWords, to: LanguageModelManager.smartMixedASCIIWordsDataPath, report: &report)
@@ -550,7 +572,7 @@ enum BroccoliPatchManager {
         )
 
         if let userPhrasesUploadURL = source.userPhrasesUploadURL {
-            try uploadText(mergedUserPhrases, to: userPhrasesUploadURL)
+            try uploadText(mergedUserPhrases, to: userPhrasesUploadURL, baseHash: contentHash(userPhrases))
             report.uploadedFiles.append(LanguageModelManager.userPhrasesDataPathMcBopomofo)
         }
         try writeSyncedFile(mergedUserPhrases, to: LanguageModelManager.userPhrasesDataPathMcBopomofo, report: &report)
@@ -559,7 +581,16 @@ enum BroccoliPatchManager {
             kind: .userPhrases
         )
         LanguageModelManager.loadUserPhrases(enableForPlainBopomofo: Preferences.enableUserPhrasesInPlainBopomofo)
+        LanguageModelManager.invalidateSmartMixedKnownWords()
         return report
+    }
+
+    /// SHA-256 of the text with line endings normalised the way the Apps
+    /// Script normalises uploads, as lowercase hex.
+    static func contentHash(_ text: String) -> String {
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        return SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     private static func dictionarySource() throws -> BroccoliPatchDictionarySource {
@@ -652,8 +683,18 @@ enum BroccoliPatchManager {
         return text
     }
 
-    private static func uploadText(_ text: String, to urlString: String) throws {
-        guard let url = URL(string: urlString) else {
+    private static func uploadText(_ text: String, to urlString: String, baseHash: String? = nil) throws {
+        guard var components = URLComponents(string: urlString) else {
+            throw BroccoliPatchError.badURL(urlString)
+        }
+        if let baseHash {
+            // The script rejects the upload if the cloud copy no longer has
+            // this hash. Older deployments ignore the parameter.
+            var items = components.queryItems ?? []
+            items.append(URLQueryItem(name: "baseHash", value: baseHash))
+            components.queryItems = items
+        }
+        guard let url = components.url else {
             throw BroccoliPatchError.badURL(urlString)
         }
 
@@ -669,9 +710,11 @@ enum BroccoliPatchManager {
         let semaphore = DispatchSemaphore(value: 0)
         var responseError: Error?
         var responseStatusCode: Int?
+        var responseBody: Data?
 
-        URLSession.shared.uploadTask(with: request, from: body) { _, response, error in
+        URLSession.shared.uploadTask(with: request, from: body) { data, response, error in
             responseError = error
+            responseBody = data
             if let httpResponse = response as? HTTPURLResponse {
                 responseStatusCode = httpResponse.statusCode
             }
@@ -690,6 +733,18 @@ enum BroccoliPatchManager {
 
         guard (200...299).contains(responseStatusCode) else {
             throw BroccoliPatchError.network("Cloud upload failed with HTTP \(responseStatusCode): \(urlString)")
+        }
+
+        // The Apps Script answers HTTP 200 even when it refuses an upload
+        // (bad secret, invalid content), so the JSON body has the real result.
+        if let responseBody,
+            let json = try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any],
+            let ok = json["ok"] as? Bool, !ok
+        {
+            if json["conflict"] as? Bool == true {
+                throw BroccoliPatchError.uploadConflict
+            }
+            throw BroccoliPatchError.uploadRejected(json["error"] as? String ?? "unknown error")
         }
     }
 
@@ -779,11 +834,30 @@ enum BroccoliPatchManager {
                 let backupURL = folderURL.appendingPathComponent("\(fileURL.lastPathComponent).backup-\(backupTimestamp())")
                 try manager.copyItem(at: fileURL, to: backupURL)
                 report.backupFiles.append(backupURL.path)
+                pruneBackups(of: fileURL, keeping: kSyncBackupsToKeep)
             }
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
             report.updatedFiles.append(path)
         } catch {
             throw BroccoliPatchError.fileWrite(error.localizedDescription)
+        }
+    }
+
+    /// A9: keep only the newest backups of a synced file. Timestamps sort
+    /// lexically, so the newest names sort last.
+    private static func pruneBackups(of fileURL: URL, keeping count: Int) {
+        let manager = FileManager.default
+        let folderURL = fileURL.deletingLastPathComponent()
+        let prefix = "\(fileURL.lastPathComponent).backup-"
+        guard let names = try? manager.contentsOfDirectory(atPath: folderURL.path) else {
+            return
+        }
+        let backups = names.filter { $0.hasPrefix(prefix) }.sorted()
+        guard backups.count > count else {
+            return
+        }
+        for name in backups.prefix(backups.count - count) {
+            try? manager.removeItem(at: folderURL.appendingPathComponent(name))
         }
     }
 
