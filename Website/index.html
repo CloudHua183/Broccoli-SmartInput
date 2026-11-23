@@ -38,13 +38,13 @@
           以 McBopomofo 小麥注音 3.1（2496）為基底，加入中英混合輸入、個人詞庫快捷新增、iCloud 詞庫同步與個人安裝包，讓技術文件、Email、會議紀錄可以少按幾次切換鍵。
         </p>
         <div class="hero-actions" aria-label="主要動作">
-          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.1/Broccoli-SmartInput-v1.2.1-personal.dmg" download>下載 DMG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.3.0/Broccoli-SmartInput-v1.3.0-personal.dmg" download>下載 DMG</a>
           <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput">查看 GitHub</a>
         </div>
         <dl class="version-strip" aria-label="目前版本資訊">
           <div>
             <dt>版本</dt>
-            <dd>v1.2.1</dd>
+            <dd>v1.3.0</dd>
           </div>
           <div>
             <dt>分支</dt>
@@ -52,7 +52,7 @@
           </div>
           <div>
             <dt>安裝包</dt>
-            <dd>2026-10-07</dd>
+            <dd>2026-11-23</dd>
           </div>
         </dl>
       </div>
@@ -259,12 +259,12 @@
         <h2>下載與安裝</h2>
         <p>目前提供個人測試用 DMG。它可以安裝在從未安裝過此輸入法的 Mac，也可以覆蓋舊版；安裝腳本會停止舊 process、替換 app bundle 並重新啟用輸入來源。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.1/Broccoli-SmartInput-v1.2.1-personal.dmg" download>下載 Broccoli SmartInput v1.2.1 DMG</a>
-          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.1/Broccoli-SmartInput-v1.2.1-personal.pkg" download>下載 PKG</a>
+          <a class="button primary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.3.0/Broccoli-SmartInput-v1.3.0-personal.dmg" download>下載 Broccoli SmartInput v1.3.0 DMG</a>
+          <a class="button secondary" href="https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.3.0/Broccoli-SmartInput-v1.3.0-personal.pkg" download>下載 PKG</a>
         </div>
       </div>
       <ol class="install-steps">
-        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.2.1-personal.pkg</code>。</li>
+        <li>打開 DMG，執行 <code>Broccoli-SmartInput-v1.3.0-personal.pkg</code>。</li>
         <li>需要 macOS 13 Ventura 或更新版本。</li>
         <li>若 macOS 顯示「Apple 無法驗證」，對 pkg 按右鍵選「打開」。</li>
         <li>安裝後到「系統設定 > 鍵盤 > 輸入方式」確認花椰輸入法已加入。</li>
@@ -284,11 +284,11 @@
           <button class="copy-button" type="button" data-copy-target="terminal-install-code">複製</button>
         </div>
         <p class="terminal-note">用終端機下載可以完全避開 Gatekeeper 的「無法驗證」：<code>curl</code> 取得的檔案不會被加上隔離屬性，瀏覽器下載的才會。</p>
-        <pre><code id="terminal-install-code">curl -L -o /tmp/broccoli.pkg https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.2.1/Broccoli-SmartInput-v1.2.1-personal.pkg
+        <pre><code id="terminal-install-code">curl -L -o /tmp/broccoli.pkg https://github.com/CloudHua183/Broccoli-SmartInput/releases/download/v1.3.0/Broccoli-SmartInput-v1.3.0-personal.pkg
 sudo installer -pkg /tmp/broccoli.pkg -target /
 open ~/Library/Input\ Methods/McBopomofo.app</code></pre>
         <p class="terminal-note">已經用瀏覽器下載好 PKG 的話，先複製到 <code>/tmp</code> 再移除隔離屬性——DMG 是唯讀磁碟區，直接對裡面的檔案下 <code>xattr</code> 一定會失敗：</p>
-        <pre><code>cp ~/Downloads/Broccoli-SmartInput-v1.2.1-personal.pkg /tmp/broccoli.pkg
+        <pre><code>cp ~/Downloads/Broccoli-SmartInput-v1.3.0-personal.pkg /tmp/broccoli.pkg
 xattr -dr com.apple.quarantine /tmp/broccoli.pkg
 sudo installer -pkg /tmp/broccoli.pkg -target /</code></pre>
       </div>
@@ -314,6 +314,40 @@ sudo installer -pkg /tmp/broccoli.pkg -target /</code></pre>
         <a href="https://github.com/openvanilla/McBopomofo">McBopomofo 原始專案</a>
         <a href="https://mcbopomofo.openvanilla.org/">McBopomofo 官方網站</a>
         <a href="https://github.com/CloudHua183/Broccoli-SmartInput">Broccoli SmartInput Repo</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">Release Notes</p>
+        <h2>v1.3.0 更新</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="status done">新功能</span>
+          <h3>中英混輸更聰明</h3>
+          <p>內建約 8.4 萬字的英文詞典，<code>你好</code> 後面打 <code>test</code>、<code>meeting</code>、<code>chrome</code> 會自動變成英文，連續的英文詞也能接著打。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">新功能</span>
+          <h3><kbd>Tab</kbd> 補全成英文</h3>
+          <p>注音打到一半按 <kbd>Tab</kbd> 可改成英文，大小寫也會自動修正，例如 <code>github</code> → <code>GitHub</code>。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">新功能</span>
+          <h3>判斷錯了馬上撤回</h3>
+          <p>自動變成英文後直接按聲調鍵，就會變回注音，下次同一組按鍵不再自動轉英文。學習紀錄只存在本機，可從選單清除。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">新功能</span>
+          <h3>中英之間自動加空格</h3>
+          <p>送出 <code>用API呼叫</code> 會變成 <code>用 API 呼叫</code>；<code>T恤</code> 這類詞不受影響。</p>
+        </article>
+        <article class="feature">
+          <span class="status done">新功能</span>
+          <h3>選字記憶與防誤觸</h3>
+          <p>選過的字重開 App 後仍記得；選單可開啟「防誤觸」，避免手掌碰到鍵盤時打出一串亂碼。</p>
+        </article>
       </div>
     </section>
 
